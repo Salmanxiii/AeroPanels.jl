@@ -1,9 +1,24 @@
 name = "AeroPanels"
 uuid = "1f493142-7360-467d-a726-5f88053bc251"
-authors = ["contributors"]
 version = "1.0.0-DEV"
+authors = ["contributors"]
+
+[deps]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[weakdeps]
+GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
+
+[extensions]
+AeroPanelsMakieExt = "GLMakie"
 
 [compat]
+GLMakie = "0.13.9"
+LinearAlgebra = "1.12.0"
+SparseArrays = "1.12.0"
+StaticArrays = "1.9.18"
 julia = "1.10.10"
 
 [extras]
