@@ -9,7 +9,8 @@ using Polyester
 import Base: show, size, iterate, length, @kwdef
 
 include("Indexing.jl")
-include("Properties.jl")
+include("PanelProperties.jl")
+include("Segments.jl")
 include("AeroSurface2D.jl")
 include("Meshing.jl")
 include("Influence.jl")
