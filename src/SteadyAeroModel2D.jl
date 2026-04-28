@@ -76,7 +76,7 @@ function AICSolve(Vvec::Vector, aeroModel::AeroModel2D)
 end
 
 function AerodynamicForces(Γp, Γw, aeroModel::AeroModel2D, vb, ρ)
-    Γs, Γc = SegmentCirculation(Γp, aeroModel.sizes);
+    # Γs, Γc = SegmentCirculation(Γp, aeroModel.sizes);
     Fs = SegmentForce(Γp, Γw, vb, ρ, aeroModel.segmentSpan)
     Fc = SegmentForce(Γp, Γw, vb, ρ, aeroModel.segmentChord)
     return Fs, Fc
