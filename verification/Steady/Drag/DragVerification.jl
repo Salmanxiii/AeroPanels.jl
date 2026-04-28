@@ -7,8 +7,10 @@ using JSON
 
 # --- Configuration ---
 save_data = false  # Set to true to overwrite golden data, false to verify against it
-data_file = "steady/drag/drag_data.json"
+data_file = joinpath(@__DIR__, "drag_data.json")
+plot_file = joinpath(@__DIR__, "AeroPanels.png")
 tol = 1e-4
+
 
 function calculate_aero_data(AR; nc=5, ns=60)
     chord = 1.0
@@ -91,5 +93,5 @@ xlims!(ax2, 0, 40)
 axislegend(ax1, position=:rb)
 axislegend(ax2, position=:rt)
 
-save("steady/drag/AeroPanels.png", fig)
-println("Plot updated at steady/drag/AeroPanels.png")
+save(plot_file, fig)
+println("Plot updated at $plot_file")

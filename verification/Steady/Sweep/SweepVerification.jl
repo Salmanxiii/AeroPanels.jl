@@ -7,8 +7,10 @@ using LaTeXStrings
 
 # --- Configuration ---
 save_data = false  # Set to true to overwrite golden data, false to verify against it
-data_file = "Steady/Sweep/sweep_data.json"
+data_file = joinpath(@__DIR__, "sweep_data.json")
+plot_file = joinpath(@__DIR__, "AeroPanels.png")
 tol = 1e-4
+
 
 function calculate_cla(AR, sweep_deg; nc=5, ns=40)
     chord = 1.0
@@ -56,11 +58,11 @@ else
     for s_str in keys(current_results)
         # Verify main curves
         if !isapprox(current_results[s_str], golden_data["results"][s_str], atol=tol)
-            error("Regression detected in results for sweep $s_str!")
+            error("Regression detected in results for sweep $(s_str)!")
         end
         # Verify inf results
         if !isapprox(current_inf[s_str], golden_data["inf_results"][s_str], atol=tol)
-            error("Regression detected in infinite AR results for sweep $s_str!")
+            error("Regression detected in infinite AR results for sweep $(s_str)!")
         end
     end
     println("Verification successful! No regressions found.")
@@ -90,5 +92,5 @@ end
 
 text!(ax, 9.05, 6.8, text="AR=100", color=:black, font=:bold, align=(:left, :center))
 axislegend(ax, position=:lt)
-save("Steady/Sweep/AeroPanels.png", fig)
-println("Plot updated at Steady/Sweep/AeroPanels.png")
+save(plot_file, fig)
+println("Plot updated at $plot_file")
