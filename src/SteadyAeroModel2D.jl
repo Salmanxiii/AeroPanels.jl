@@ -22,8 +22,8 @@ function AeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroModelPropert
     panelProperties = PanelProperties(sizes.totalPanels, mesh, FlowAxis(props))
 
     # AIC Calculation
-    AIC = Influence(panelProperties.rCollocation, panelProperties.normal, ringMesh, symmXZ);
-    AICwake = Influence(panelProperties.rCollocation, panelProperties.normal, wakeMesh, symmXZ);
+    AIC = Influence(panelProperties.rCollocation, panelProperties.normal, ringMesh, props.symmXZ);
+    AICwake = Influence(panelProperties.rCollocation, panelProperties.normal, wakeMesh, props.symmXZ);
     TEindices = TEPanelIndex(sizes)
     # Add Wake Influence
     AIC[:, TEindices] .+= AICwake
