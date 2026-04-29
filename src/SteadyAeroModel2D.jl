@@ -21,11 +21,15 @@ function AeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroModelPropert
     wakeMesh, wakeSizes = FlatWakeMesh(ringMesh, sizes, props)
     panelProperties = PanelProperties(sizes.totalPanels, mesh, FlowAxis(props))
 
-    AIC = SteadyWakeInfluence(panelProperties.rCollocation, panelProperties.normal,
-     ringMesh, wakeMesh, sizes, props.symmXZ)
+    # AIC Calculation
+    AIC = Influence(panelProperties.rCollocation, panelProperties.normal, ringMesh, symmXZ);
+    AICwake = Influence(panelProperties.rCollocation, panelProperties.normal, wakeMesh, symmXZ);
+    TEindices = TEPanelIndex(sizes)
+    # Add Wake Influence
+    AIC[:, TEindices] .+= AICwake
     AIC = lu(AIC)
-    segmentProps = ProcessSegments(ringMesh, sizes, wakeMesh, wakeSizes, props.symmXZ)
 
+    segmentProps = ProcessSegments(ringMesh, sizes, wakeMesh, wakeSizes, props.symmXZ)
     return AeroModel2D(mesh, ringMesh, wakeMesh, sizes, wakeSizes, panelProperties, props, AIC, segmentProps)
 end
 

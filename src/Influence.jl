@@ -52,9 +52,7 @@ function Influence3!(AIC::Matrix{Point3{T}}, rCollocation::Vector{Point3{T}}, me
 end
 
 function Influence3(rCollocation::Vector{Point3{T}}, mesh, symmXZ) where T
-    n = length(rCollocation)
-    m = length(mesh)
-    AIC = Matrix{Point3{T}}(undef, n, m)
+    AIC = Matrix{Point3{T}}(undef, length(rCollocation), m = length(mesh))
     Influence!(AIC, rCollocation, mesh, symmXZ)
     return AIC
 end
@@ -73,14 +71,3 @@ function Influence(rCollocation::Vector{Point3{T}}, normals::Vector{Point3{T}}, 
     end
     return AIC
 end
-
-function SteadyWakeInfluence(rCollocation::Vector{Point3{T}}, normals, ringMesh, wakeMesh, sizes, symmXZ) where T
-    AIC = Influence(rCollocation, normals, ringMesh, symmXZ);
-    AICwake = Influence(rCollocation, normals, wakeMesh, symmXZ);
-    TEindices = TEPanelIndex(sizes)
-    # Add Wake Influence
-    AIC[:, TEindices] .+= AICwake
-    # AIC = [dot(AIC3[j,i], normal[j]) for j in 1:length(normal), i in 1:length(ringMesh)]
-    return AIC
-end
-
