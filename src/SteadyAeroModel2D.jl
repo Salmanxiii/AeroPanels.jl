@@ -147,3 +147,5 @@ function AeroSolve(V, α::Real, model::AeroModel2D, ρ = 1.225)
     vb = BodyVelocity(V, deg2rad(α))
     return AeroSolve(vb, model, ρ)
 end
+
+AerodynamicLoadLocation(model::AeroModel2D) = model.segmentProps.mid
