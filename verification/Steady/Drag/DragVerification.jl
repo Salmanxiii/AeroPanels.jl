@@ -6,7 +6,7 @@ using JSON
 
 # --- Configuration ---
 save_data = false  # Set to true to overwrite golden data, false to verify against it
-plot_data = false
+save_plot = false
 data_file = joinpath(@__DIR__, "drag_data.json")
 plot_file = joinpath(@__DIR__, "AeroPanels.png")
 tol = 1e-4
@@ -67,7 +67,7 @@ else
     println("Verification successful! No regressions found.")
 end
 
-if plot_data
+if save_plot
         
     using CairoMakie
 
