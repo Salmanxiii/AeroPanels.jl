@@ -1,5 +1,3 @@
-
-# 1. New struct definition (Iteration 2 as requested)
 struct SegmentProperties{T}
     mid::Vector{Point3{T}}
     r::Vector{Point3{T}}
@@ -9,9 +7,11 @@ struct SegmentProperties{T}
     indPosPanel::Vector{Int}
     indNegSeg::Vector{Int}
     indNegPanel::Vector{Int}
+    nSpanSegments::Int
+    nChordSegments::Int
+    nTotalSegments::Int
 end
 
-# 2. Population logic for indices
 function BuildSpanwiseIndices(sizes::Sizes)
     n_pos = sizes.totalPanels
     n_neg = sum((nc - 1) * ns for (_, nc, ns) in sizes)
@@ -52,35 +52,39 @@ function BuildChordwiseIndices(sizes::Sizes)
     return pos_seg, pos_pan, neg_seg, neg_pan
 end
 
+function BuildSegmentIndices(sizes::Sizes)
+    nss, ncs = TotalSegments(sizes)
+    pos_seg1, pos_pan1, neg_seg1, neg_pan1 = BuildSpanwiseIndices(sizes)
+    pos_seg2, pos_pan2, neg_seg2, neg_pan2 = BuildChordwiseIndices(sizes)
+    pos_seg2 .+= nss
+    neg_seg2 .+= nss
+    return [pos_seg1; pos_seg2], [pos_pan1; pos_pan2], [neg_seg1; neg_seg2], [neg_pan1; neg_pan2]
+end
+
 function ProcessSegments(meshRing::GeometryBasics.Mesh{3, T}, sizesRing, meshWake::GeometryBasics.Mesh{3, T}, sizesWake, symmXZ) where T
     nss, ncs = TotalSegments(sizesRing)
     nr = sizesRing.totalPanels
     nw = sizesWake.totalPanels
+    nts = nss + ncs # number of total segments in body
 
-    pos_seg, pos_pan, neg_seg, neg_pan = BuildSpanwiseIndices(sizesRing)
-    segmentSpan = SegmentProperties(
-    Vector{Point3{T}}(undef, nss),
-    Vector{Point3{T}}(undef, nss),
-    Matrix{Point3{T}}(undef, nss, nr),
-    Matrix{Point3{T}}(undef, nss, nw),
-    pos_seg, pos_pan, neg_seg, neg_pan)
+    pos_seg, pos_pan, neg_seg, neg_pan = BuildSegmentIndices(sizesRing)
 
-    pos_seg, pos_pan, neg_seg, neg_pan = BuildChordwiseIndices(sizesRing)
-    segmentChord = SegmentProperties(
-    Vector{Point3{T}}(undef, ncs),
-    Vector{Point3{T}}(undef, ncs),
-    Matrix{Point3{T}}(undef, ncs, nr),
-    Matrix{Point3{T}}(undef, ncs, nw),
-    pos_seg, pos_pan, neg_seg, neg_pan)
+    segmentProps = SegmentProperties(
+    Vector{Point3{T}}(undef, nts),
+    Vector{Point3{T}}(undef, nts),
+    Matrix{Point3{T}}(undef, nts, nr),
+    Matrix{Point3{T}}(undef, nts, nw),
+    pos_seg, pos_pan, neg_seg, neg_pan, nss, ncs, nts)
 
-    UpdateSegmentProperties!(segmentSpan, segmentChord, meshRing, sizesRing)
-    UpdateSegmentAIC!(segmentSpan, segmentChord, meshRing, meshWake, symmXZ)
-    return segmentSpan, segmentChord
+    UpdateSegmentProperties!(segmentProps, meshRing, sizesRing)
+    UpdateSegmentAIC!(segmentProps, meshRing, meshWake, symmXZ)
+    return segmentProps
 end
 
-function UpdateSegmentProperties!(segmentSpan, segmentChord, meshRing, sizesRing)
-#function ProcessSegments!(segmentSpan, segmentChord, vertices, sizesRing)
+function UpdateSegmentProperties!(segmentProps, meshRing, sizesRing)
     vertices = coordinates(meshRing)
+    nss = segmentProps.nSpanSegments
+
     # loop over Spanwise Segments
     for (s, nc, ns) in sizesRing
         @batch for i in 1:nc+1
@@ -88,8 +92,8 @@ function UpdateSegmentProperties!(segmentSpan, segmentChord, meshRing, sizesRing
                 r1 = vertices[VertexIndex(s, i, j, sizesRing)]
                 r2 = vertices[VertexIndex(s, i, j+1, sizesRing)]
                 m = SpanSegmentIndex(s, i, j, sizesRing)
-                segmentSpan.mid[m] = (r1 + r2) / 2
-                segmentSpan.r[m] = r2 - r1
+                segmentProps.mid[m] = (r1 + r2) / 2
+                segmentProps.r[m] = r2 - r1
             end
         end
     end
@@ -101,23 +105,20 @@ function UpdateSegmentProperties!(segmentSpan, segmentChord, meshRing, sizesRing
                 r1 = vertices[VertexIndex(s, i, j, sizesRing)]
                 r2 = vertices[VertexIndex(s, i+1, j, sizesRing)]
                 m = ChordSegmentIndex(s, i, j, sizesRing)
-                segmentChord.mid[m] = (r1 + r2) / 2
-                segmentChord.r[m] = r2 - r1
+                segmentProps.mid[m+nss] = (r1 + r2) / 2
+                segmentProps.r[m+nss] = r2 - r1
             end    
         end
     end
     return nothing
 end
 
-function UpdateSegmentAIC!(segmentSpan, segmentChord, meshRing, meshWake, symmXZ)
-    Influence3!(segmentSpan.aic3Ring, segmentSpan.mid, meshRing, symmXZ)
-    Influence3!(segmentSpan.aic3Wake, segmentSpan.mid, meshWake, symmXZ)
-    Influence3!(segmentChord.aic3Ring, segmentChord.mid, meshRing, symmXZ)
-    Influence3!(segmentChord.aic3Wake, segmentChord.mid, meshWake, symmXZ)
+function UpdateSegmentAIC!(segmentProps, meshRing, meshWake, symmXZ)
+    Influence3!(segmentProps.aic3Ring, segmentProps.mid, meshRing, symmXZ)
+    Influence3!(segmentProps.aic3Wake, segmentProps.mid, meshWake, symmXZ)
     return nothing
 end
 
-# 3. Calculation logic using the new indexing scheme
 function SegmentCirculation!(Γseg, Γp, sp::SegmentProperties)
     Γseg .= 0
     Γseg[sp.indPosSeg] .= @view Γp[sp.indPosPanel]
@@ -125,8 +126,6 @@ function SegmentCirculation!(Γseg, Γp, sp::SegmentProperties)
     return Γseg
 end
 SegmentCirculation(Γp::AbstractArray{T}, sp::SegmentProperties) where T = SegmentCirculation!(zeros(T, size(sp.aic3Ring,1)), Γp, sp)
-
-
 
 """
 Calculate the velocity at each segment due to the ring and wake influences
@@ -149,7 +148,7 @@ function SegmentForce(Γr, Γw, vb, ρ, sp::SegmentProperties)
     return Fs
 end
 function SegmentForce(Γr, vb, ρ, sp::SegmentProperties)
-    Γs = SegmentCirculation!(Γs, Γr, sp)
+    Γs = SegmentCirculation(Γr, sp)
     Fs = [ρ * Γs[i] * cross(vb, sp.r[i]) for i in 1:length(Γs)]
     return Fs
 end

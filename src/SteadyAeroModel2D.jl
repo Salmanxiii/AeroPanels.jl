@@ -12,8 +12,7 @@ struct AeroModel2D{T<:Real} <: AeroModel
     panelProperties::PanelProperties{T}
     modelProperties::AeroModelProperties{T}
     AIC::LU{T, Matrix{T}, Vector{Int64}}
-    segmentSpan::SegmentProperties{T}
-    segmentChord::SegmentProperties{T}
+    segmentProps::SegmentProperties{T}
 end
 
 function AeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroModelProperties{T}) where T
@@ -25,9 +24,9 @@ function AeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroModelPropert
     AIC = SteadyWakeInfluence(panelProperties.rCollocation, panelProperties.normal,
      ringMesh, wakeMesh, sizes, props.symmXZ)
     AIC = lu(AIC)
-    segmentSpan, segmentChord = ProcessSegments(ringMesh, sizes, wakeMesh, wakeSizes, props.symmXZ)
+    segmentProps = ProcessSegments(ringMesh, sizes, wakeMesh, wakeSizes, props.symmXZ)
 
-    return AeroModel2D(mesh, ringMesh, wakeMesh, sizes, wakeSizes, panelProperties, props, AIC, segmentSpan, segmentChord)
+    return AeroModel2D(mesh, ringMesh, wakeMesh, sizes, wakeSizes, panelProperties, props, AIC, segmentProps)
 end
 
 ################################## Solution #########################################
@@ -38,16 +37,15 @@ struct SteadySolution{T}
     forceUnsteady::Point3{T}
     coefficientBody::Point3{T}
     coefficientStability::Point3{T}
-    forceVecSpan::Vector{Point3{T}} # Force on spanwise segments
-    forceVecChord::Vector{Point3{T}}
+    forceVecSeg::Vector{Point3{T}} # Force on segments
     CL::T
     CD::T
 end
 
-function SteadySolution(Fs, Fc, vb, aeroModel, ρ=1.225, Fu=[Point3(0.,0.,0.)])
+function SteadySolution(Fs, vb, aeroModel, ρ=1.225, Fu=[Point3(0.,0.,0.)])
     S = aeroModel.modelProperties.S
     Fu_sum = sum(Fu)
-    F = sum(Fs) + sum(Fc) + Fu_sum
+    F = sum(Fs) + Fu_sum
     Fbody = GeometryToBodyAxis(F, aeroModel.modelProperties)
     α, β, V = AerodynamicAngles(vb)
     Fstability = BodyFixedToStabilityAxis(Fbody, α)
@@ -56,7 +54,7 @@ function SteadySolution(Fs, Fc, vb, aeroModel, ρ=1.225, Fu=[Point3(0.,0.,0.)])
     CD = -Fstability[1] / Q / S
 
     T = typeof(CL)
-    return SteadySolution{T}(Fbody, Fstability, Fu_sum, Fbody/Q/S, Fstability/Q/S, Fs, Fc, CL, CD)
+    return SteadySolution{T}(Fbody, Fstability, Fu_sum, Fbody/Q/S, Fstability/Q/S, Fs, CL, CD)
 end
 
 # 1. Compact Mode (for arrays/interpolation)
@@ -77,18 +75,17 @@ end
 
 function AerodynamicForces(Γp, Γw, aeroModel::AeroModel2D, vb, ρ)
     # Γs, Γc = SegmentCirculation(Γp, aeroModel.sizes);
-    Fs = SegmentForce(Γp, Γw, vb, ρ, aeroModel.segmentSpan)
-    Fc = SegmentForce(Γp, Γw, vb, ρ, aeroModel.segmentChord)
-    return Fs, Fc
+    Fs = SegmentForce(Γp, Γw, vb, ρ, aeroModel.segmentProps)
+    return Fs
 end
 
 function AeroSolve(V, vb::AbstractVector, aeroModel::AeroModel2D, ρ = 1.225)
 
     velVec = [vb for i in 1:aeroModel.sizes.totalPanels]
     Γp, Γw = AICSolve(velVec, aeroModel)
-    Fs, Fc = AerodynamicForces(Γp, Γw, aeroModel, vb, ρ)
+    Fs = AerodynamicForces(Γp, Γw, aeroModel, vb, ρ)
 
-    return SteadySolution(Fs, Fc, vb, aeroModel, ρ)
+    return SteadySolution(Fs, vb, aeroModel, ρ)
 end
 
 function AeroSolve(V, α::Real, aeroModel::AeroModel2D, ρ = 1.225)
