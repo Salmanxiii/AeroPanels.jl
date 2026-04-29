@@ -1,12 +1,12 @@
 using AeroPanels
 using StaticArrays
 using ForwardDiff
-using CairoMakie
 using LaTeXStrings
 using JSON
 
 # --- Configuration ---
 save_data = false  # Set to true to overwrite golden data, false to verify against it
+plot_data = false
 data_file = joinpath(@__DIR__, "drag_data.json")
 plot_file = joinpath(@__DIR__, "AeroPanels.png")
 tol = 1e-4
@@ -67,31 +67,36 @@ else
     println("Verification successful! No regressions found.")
 end
 
-# Plotting settings
-set_theme!(fontsize = 24, font = "Latin Modern Math")
+if plot_data
+        
+    using CairoMakie
 
-fig = Figure(size=(1300, 600))
+    # Plotting settings
+    set_theme!(fontsize = 24, font = "Latin Modern Math")
 
-# CLa Plot
-ax1 = Axis(fig[1, 1], title=L"Lift Curve Slope ($C_{L\alpha}$)",
-          xlabel=L"AR", ylabel=L"C_{L\alpha} \text{ [1/rad]}")
-lines!(ax1, ars, current_cla, color=:blue, linewidth=3)
-scatter!(ax1, ars, current_cla, color=:blue, markersize=12)
-hlines!(ax1, [2π], color=:red, linestyle=:dash, label=L"2\pi", linewidth=2)
-ylims!(ax1, 3.5, 6.5)
-xlims!(ax1, 0, 40)
+    fig = Figure(size=(1300, 600))
 
-# K Plot
-ax2 = Axis(fig[1, 2], title=L"Induced Drag Factor ($C_D/C_L^2$)",
-          xlabel=L"AR", ylabel=L"C_D/C_L^2")
-lines!(ax2, ars, current_k, color=:black, linewidth=3)
-scatter!(ax2, ars, current_k, color=:black, markersize=12)
-lines!(ax2, ars, 1 ./ (π .* ars), color=:red, linestyle=:dash, label=L"1/(\pi AR)", linewidth=2)
-ylims!(ax2, 0, 0.08)
-xlims!(ax2, 0, 40)
+    # CLa Plot
+    ax1 = Axis(fig[1, 1], title=L"Lift Curve Slope ($C_{L\alpha}$)",
+            xlabel=L"AR", ylabel=L"C_{L\alpha} \text{ [1/rad]}")
+    lines!(ax1, ars, current_cla, color=:blue, linewidth=3)
+    scatter!(ax1, ars, current_cla, color=:blue, markersize=12)
+    hlines!(ax1, [2π], color=:red, linestyle=:dash, label=L"2\pi", linewidth=2)
+    ylims!(ax1, 3.5, 6.5)
+    xlims!(ax1, 0, 40)
 
-axislegend(ax1, position=:rb)
-axislegend(ax2, position=:rt)
+    # K Plot
+    ax2 = Axis(fig[1, 2], title=L"Induced Drag Factor ($C_D/C_L^2$)",
+            xlabel=L"AR", ylabel=L"C_D/C_L^2")
+    lines!(ax2, ars, current_k, color=:black, linewidth=3)
+    scatter!(ax2, ars, current_k, color=:black, markersize=12)
+    lines!(ax2, ars, 1 ./ (π .* ars), color=:red, linestyle=:dash, label=L"1/(\pi AR)", linewidth=2)
+    ylims!(ax2, 0, 0.08)
+    xlims!(ax2, 0, 40)
 
-save(plot_file, fig)
-println("Plot updated at $plot_file")
+    axislegend(ax1, position=:rb)
+    axislegend(ax2, position=:rt)
+
+    save(plot_file, fig)
+    println("Plot updated at $plot_file")
+end

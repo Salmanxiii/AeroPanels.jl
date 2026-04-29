@@ -1,12 +1,12 @@
 using AeroPanels
 using StaticArrays
 using ForwardDiff
-using CairoMakie
 using JSON
 using LaTeXStrings
 
 # --- Configuration ---
 save_data = false  # Set to true to overwrite golden data, false to verify against it
+save_plot = false
 data_file = joinpath(@__DIR__, "sweep_data.json")
 plot_file = joinpath(@__DIR__, "AeroPanels.png")
 tol = 1e-4
@@ -69,28 +69,31 @@ else
 end
 
 # --- Plotting ---
-fig = Figure(size=(800, 600))
-ax = Axis(fig[1, 1], title="Sweep and Aspect Ratio Effect on CLa",
-          xlabel=L"Aspect Ratio $AR$", ylabel=L"$C_{L\alpha}$")
+if save_plot
+    using CairoMakie
+    fig = Figure(size=(800, 600))
+    ax = Axis(fig[1, 1], title="Sweep and Aspect Ratio Effect on CLa",
+            xlabel=L"Aspect Ratio $AR$", ylabel=L"$C_{L\alpha}$")
 
-xlims!(ax, 0, 8.5)
-ylims!(ax, 0, 7)
-ax.xticks = 0:9
-ax.yticks = 0:7
+    xlims!(ax, 0, 8.5)
+    ylims!(ax, 0, 7)
+    ax.xticks = 0:9
+    ax.yticks = 0:7
 
-for (i, sweep) in enumerate(sweeps)
-    s_str = string(sweep)
-    res = current_results[s_str]
-    lines!(ax, ars, res, label="$(s_str)° Sweep", color=colors[i], linewidth=2)
-    scatter!(ax, ars, res, color=colors[i])
-    
-    val_inf = current_inf[s_str]
-    lines!(ax, [8.9, 9.0], [val_inf, val_inf], color=colors[i], linewidth=2)
-    text!(ax, 9.05, val_inf, text=string(round(val_inf, digits=2)), 
-          color=colors[i], align=(:left, :center), fontsize=14)
+    for (i, sweep) in enumerate(sweeps)
+        s_str = string(sweep)
+        res = current_results[s_str]
+        lines!(ax, ars, res, label="$(s_str)° Sweep", color=colors[i], linewidth=2)
+        scatter!(ax, ars, res, color=colors[i])
+        
+        val_inf = current_inf[s_str]
+        lines!(ax, [8.9, 9.0], [val_inf, val_inf], color=colors[i], linewidth=2)
+        text!(ax, 9.05, val_inf, text=string(round(val_inf, digits=2)), 
+            color=colors[i], align=(:left, :center), fontsize=14)
+    end
+
+    text!(ax, 9.05, 6.8, text="AR=100", color=:black, font=:bold, align=(:left, :center))
+    axislegend(ax, position=:lt)
+    save(plot_file, fig)
+    println("Plot updated at $plot_file")
 end
-
-text!(ax, 9.05, 6.8, text="AR=100", color=:black, font=:bold, align=(:left, :center))
-axislegend(ax, position=:lt)
-save(plot_file, fig)
-println("Plot updated at $plot_file")
