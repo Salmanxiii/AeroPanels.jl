@@ -68,32 +68,82 @@ function Base.show(io::IO, sol::SteadySolution{T}) where T
 end
 
 ################################## Solution #########################################
-
-function AICSolve(Vvec::Vector, aeroModel::AeroModel2D)
-    RHS = -[dot(v, nrml) for (v, nrml) in zip(Vvec, aeroModel.panelProperties.normal)]
-    Γp = aeroModel.AIC\RHS
-    index = TEPanelIndex(aeroModel.sizes)
-    Γw = @view Γp[index]
-    return Γp, Γw
+function NormalWash!(b::AbstractVector, vb::AbstractVector, model::AeroModel)
+    @batch for i in 1:length(b)
+        b[i] = -dot(vb, model.panelProperties.normal[i])
+    end
+    return nothing
 end
 
-function AerodynamicForces(Γp, Γw, aeroModel::AeroModel2D, vb, ρ)
-    # Γs, Γc = SegmentCirculation(Γp, aeroModel.sizes);
-    Fs = SegmentForce(Γp, Γw, vb, ρ, aeroModel.segmentProps)
-    return Fs
+"""
+    NormalWash(vb, model)
+Calculate and return the normal wash vector `b`.
+"""
+function NormalWash(vb::AbstractVector, model::AeroModel)
+    b = Vector{eltype(vb)}(undef, model.sizes.totalPanels)
+    NormalWash!(b, vb, model)
+    return b
 end
 
-function AeroSolve(V, vb::AbstractVector, aeroModel::AeroModel2D, ρ = 1.225)
 
-    velVec = [vb for i in 1:aeroModel.sizes.totalPanels]
-    Γp, Γw = AICSolve(velVec, aeroModel)
-    Fs = AerodynamicForces(Γp, Γw, aeroModel, vb, ρ)
-
-    return SteadySolution(Fs, vb, aeroModel, ρ)
+function Circulation!(Γp::AbstractVector, Γw::AbstractVector, Γs::AbstractVector, b::AbstractVector, model::AeroModel)
+    # Solve for panel circulation
+    ldiv!(Γp, model.AIC, b)
+    
+    # Extract wake circulation
+    index = TEPanelIndex(model.sizes)
+    Γw .= @view Γp[index]
+    
+    # Calculate segment circulation
+    SegmentCirculation!(Γs, Γp, model.segmentProps)
+    return nothing
 end
 
-function AeroSolve(V, α::Real, aeroModel::AeroModel2D, ρ = 1.225)
+"""
+    Circulation(b, model)
+Solve for and return (Γp, Γw, Γs).
+"""
+function Circulation(b::AbstractVector, model::AeroModel)
+    T = eltype(b)
+    Γp = Vector{T}(undef, model.sizes.totalPanels)
+    Γw = Vector{T}(undef, model.wakeSizes.totalPanels)
+    Γs = Vector{T}(undef, model.segmentProps.nTotalSegments)
+    Circulation!(Γp, Γw, Γs, b, model)
+    return Γp, Γw, Γs
+end
+
+
+function AerodynamicForce!(Fa::AbstractVector, Γp::AbstractVector, Γw::AbstractVector, Γs::AbstractVector, vb::AbstractVector, model::AeroModel; ρ=1.225)
+    # Calculate induced velocity at segments
+    # Non-allocating version of equation v = AIC3r * Γr + AIC3w * Γw
+    Vi = model.segmentProps.aic3Ring * Γp
+    mul!(Vi, model.segmentProps.aic3Wake, Γw, 1.0, 1.0)
+    
+    @batch for i in 1:length(Fa)
+        Fa[i] = ρ * Γs[i] * cross(Vi[i] + vb, model.segmentProps.r[i])
+    end
+    return nothing
+end
+
+"""
+    AerodynamicForce(Γp, Γw, Γs, vb, model; ρ=1.225)
+Calculate and return the aerodynamic force vector `Fa` on segments.
+"""
+function AerodynamicForce(Γp::AbstractVector, Γw::AbstractVector, Γs::AbstractVector, vb::AbstractVector, model::AeroModel; ρ=1.225)
+    T = eltype(Γp)
+    Fa = Vector{Point3{T}}(undef, model.segmentProps.nTotalSegments)
+    AerodynamicForce!(Fa, Γp, Γw, Γs, vb, model, ρ=ρ)
+    return Fa
+end
+
+function AeroSolve(vb::AbstractVector, model::AeroModel2D, ρ = 1.225)
+    b = NormalWash(vb, model)
+    Γp, Γw, Γs = Circulation(b, model)
+    Fa = AerodynamicForce(Γp, Γw, Γs, vb, model, ρ=1.225)
+    return SteadySolution(Fa, vb, model, ρ)
+end
+
+function AeroSolve(V, α::Real, model::AeroModel2D, ρ = 1.225)
     vb = BodyVelocity(V, deg2rad(α))
-    return AeroSolve(V, vb, aeroModel, ρ)
+    return AeroSolve(vb, model, ρ)
 end
-

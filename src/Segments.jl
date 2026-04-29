@@ -126,29 +126,3 @@ function SegmentCirculation!(Γseg, Γp, sp::SegmentProperties)
     return Γseg
 end
 SegmentCirculation(Γp::AbstractArray{T}, sp::SegmentProperties) where T = SegmentCirculation!(zeros(T, size(sp.aic3Ring,1)), Γp, sp)
-
-"""
-Calculate the velocity at each segment due to the ring and wake influences
-"""
-function SegmentInducedVelocity(Γr, Γw, sp::SegmentProperties)
-    # Non-allocating version of equation v = AIC3r * Γr + AIC3w * Γw
-    V = sp.aic3Ring * Γr
-    mul!(V, sp.aic3Wake, Γw, 1.0, 1.0)
-end
-"""
-Calculate the force on each segment due to the circulation and airflow velocity at the segment
-"""
-function SegmentForce(Γr, Γw, vb, ρ, sp::SegmentProperties)
-    Γs = SegmentCirculation(Γr, sp)
-    Fs = SegmentInducedVelocity(Γr, Γw, sp) # calculate velocity induced at each segment
-    # Non-allocating version of Fs = ρ * Γs .* cross.(Vs, rs)
-    @batch for i in 1:length(Fs)
-        Fs[i] = ρ * Γs[i] * cross(Fs[i]+vb, sp.r[i]) 
-    end
-    return Fs
-end
-function SegmentForce(Γr, vb, ρ, sp::SegmentProperties)
-    Γs = SegmentCirculation(Γr, sp)
-    Fs = [ρ * Γs[i] * cross(vb, sp.r[i]) for i in 1:length(Γs)]
-    return Fs
-end
