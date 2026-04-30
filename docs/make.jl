@@ -16,6 +16,6 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/Julius/AeroPanels.jl.git",
+    repo = "github.com/Salmanxiii/AeroPanels.jl.git",
     devbranch = "main",
 )

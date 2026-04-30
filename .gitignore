@@ -1,5 +1,6 @@
 /Manifest*.toml
 /src/ignore/Linearization.jl
 /src/ignore/UnsteadyAeroModel2D.jl
+/docs/build/
 /GEMINI.md
 .gitignore
