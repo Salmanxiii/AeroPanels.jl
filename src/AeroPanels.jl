@@ -15,6 +15,7 @@ include("AeroSurface2D.jl")
 include("Meshing.jl")
 include("Influence.jl")
 include("SteadyAeroModel2D.jl")
+include("UnsteadyAeroModel2D.jl")
 include("Misc.jl")
 
 # Exports
@@ -26,5 +27,8 @@ export WakeModel, CreateAeroMesh, RingMesh, FlatWakeMesh
 export VORTXL, VORING, Influence, SteadyWakeInfluence
 export AeroModel, AeroModel2D, SteadySolution, AICSolve, AerodynamicForces, AeroSolve
 export BodyAccelerations, AerodynamicAnglesDerivatives
+export UnsteadyAeroModel2D, UnsteadyWakeInfluence, FullWakeFromTransportWakeOperator
+export GetFullWakeVector, SolveSteadyCirculation, SolveCirculation, UnsteadyPanelForces
+export SolveForces, NumberOfStates
 
 end

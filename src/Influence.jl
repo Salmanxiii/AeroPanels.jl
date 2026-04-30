@@ -18,14 +18,14 @@ function VORTXL(xyzp, xyz1, xyz2, Γ)
     return q
 end
 
-function MirrorY(r::SVector)
-    return SA[r.x, -r.y, r.z]
+function MirrorY(r)
+    return typeof(r)(r[1], -r[2], r[3])
 end
 
 function VORTXL(xyzp, xyz1, xyz2, Γ, symmXZ)
     uvw = VORTXL(xyzp, xyz1, xyz2, Γ)
     if symmXZ == true
-        uvwMirror = MirrorY(VORTXL(xyzP, MirrorY(xyz1), MirrorY(xyz2), Γ))
+        uvwMirror = MirrorY(VORTXL(MirrorY(xyzp), xyz1, xyz2, Γ))
         uvw = uvw + uvwMirror
     end
     return uvw
