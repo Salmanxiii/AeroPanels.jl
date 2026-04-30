@@ -1,0 +1,5 @@
+[deps]
+AeroPanels = "1f493142-7360-467d-a726-5f88053bc251"
+DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+LiveServer = "24249f21-da20-56a4-8eb1-6a02cf4ae2e6"

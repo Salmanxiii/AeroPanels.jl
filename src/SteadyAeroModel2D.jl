@@ -3,6 +3,13 @@ abstract type AeroModel end
 
 ################################## Aero Modeling #########################################
 
+"""
+$(TYPEDEF)
+
+A 2D aerodynamic model representing a collection of lifting surfaces and their steady wake.
+
+$(TYPEDFIELDS)
+"""
 struct AeroModel2D{T<:Real} <: AeroModel
     mesh::GeometryBasics.Mesh{3, T}
     ringMesh::GeometryBasics.Mesh{3, T}
@@ -35,6 +42,13 @@ end
 
 ################################## Solution #########################################
 
+"""
+$(TYPEDEF)
+
+The solution to a steady aerodynamic problem.
+
+$(TYPEDFIELDS)
+"""
 struct SteadySolution{T}
     forceBody::Point3{T}
     forceStability::Point3{T}
@@ -68,6 +82,11 @@ function Base.show(io::IO, sol::SteadySolution{T}) where T
 end
 
 ################################## Solution #########################################
+"""
+$(SIGNATURES)
+
+Calculate the normal wash on each panel in-place into vector `b`.
+"""
 function NormalWash!(b::AbstractVector, vb::AbstractVector, model::AeroModel)
     @batch for i in 1:length(b)
         b[i] = -dot(vb, model.panelProperties.normal[i])
@@ -76,7 +95,8 @@ function NormalWash!(b::AbstractVector, vb::AbstractVector, model::AeroModel)
 end
 
 """
-    NormalWash(vb, model)
+$(SIGNATURES)
+
 Calculate and return the normal wash vector `b`.
 """
 function NormalWash(vb::AbstractVector, model::AeroModel)
@@ -85,7 +105,11 @@ function NormalWash(vb::AbstractVector, model::AeroModel)
     return b
 end
 
+"""
+$(SIGNATURES)
 
+Solve for panel, wake, and segment circulations in-place.
+"""
 function Circulation!(Γp::AbstractVector, Γw::AbstractVector, Γs::AbstractVector, b::AbstractVector, model::AeroModel)
     # Solve for panel circulation
     ldiv!(Γp, model.AIC, b)
@@ -100,7 +124,8 @@ function Circulation!(Γp::AbstractVector, Γw::AbstractVector, Γs::AbstractVec
 end
 
 """
-    Circulation(b, model)
+$(SIGNATURES)
+
 Solve for and return (Γp, Γw, Γs).
 """
 function Circulation(b::AbstractVector, model::AeroModel)
@@ -112,7 +137,11 @@ function Circulation(b::AbstractVector, model::AeroModel)
     return Γp, Γw, Γs
 end
 
+"""
+$(SIGNATURES)
 
+Calculate aerodynamic forces on segments in-place into vector `Fa`.
+"""
 function AerodynamicForce!(Fa::AbstractVector, Γp::AbstractVector, Γw::AbstractVector, Γs::AbstractVector, vb::AbstractVector, model::AeroModel; ρ=1.225)
     # Calculate induced velocity at segments
     # Non-allocating version of equation v = AIC3r * Γr + AIC3w * Γw
@@ -126,7 +155,8 @@ function AerodynamicForce!(Fa::AbstractVector, Γp::AbstractVector, Γw::Abstrac
 end
 
 """
-    AerodynamicForce(Γp, Γw, Γs, vb, model; ρ=1.225)
+$(SIGNATURES)
+
 Calculate and return the aerodynamic force vector `Fa` on segments.
 """
 function AerodynamicForce(Γp::AbstractVector, Γw::AbstractVector, Γs::AbstractVector, vb::AbstractVector, model::AeroModel; ρ=1.225)
@@ -136,6 +166,12 @@ function AerodynamicForce(Γp::AbstractVector, Γw::AbstractVector, Γs::Abstrac
     return Fa
 end
 
+"""
+$(SIGNATURES)
+
+Solve the steady aerodynamic problem for a given body velocity `vb`.
+Returns a [`SteadySolution`](@ref).
+"""
 function AeroSolve(vb::AbstractVector, model::AeroModel2D, ρ = 1.225)
     b = NormalWash(vb, model)
     Γp, Γw, Γs = Circulation(b, model)
@@ -143,6 +179,11 @@ function AeroSolve(vb::AbstractVector, model::AeroModel2D, ρ = 1.225)
     return SteadySolution(Fa, vb, model, ρ)
 end
 
+"""
+$(SIGNATURES)
+
+Solve the steady aerodynamic problem for a given speed `V` and angle of attack `α` (degrees).
+"""
 function AeroSolve(V, α::Real, model::AeroModel2D, ρ = 1.225)
     vb = BodyVelocity(V, deg2rad(α))
     return AeroSolve(vb, model, ρ)

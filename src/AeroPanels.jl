@@ -5,6 +5,7 @@ using StaticArrays
 using GeometryBasics
 using SparseArrays
 using Polyester
+using DocStringExtensions
 
 import Base: show, size, iterate, length, @kwdef
 

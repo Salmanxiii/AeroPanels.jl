@@ -5,6 +5,12 @@
 #    Γb = L3*Γw - L4*b
 #    Γw0 = L7*Γw - L8*b
 
+"""
+$(SIGNATURES)
+
+Calculate the unsteady aerodynamic influence coefficients and state-space matrices.
+Based on Binder (2017) and AIAA (2018) publications.
+"""
 function UnsteadyWakeInfluence(rCollocation::Vector{Point3{T}}, normal, ringMesh, wakeMesh, bodySizes, wakeSizes, symmXZ, Δt) where T
     AICwake = Influence(rCollocation, normal, wakeMesh, symmXZ);
     wakeLEIndices = LEPanelIndex(wakeSizes)
@@ -36,7 +42,7 @@ function UnsteadyWakeInfluence(rCollocation::Vector{Point3{T}}, normal, ringMesh
     K7 *= 1/Δt
 #  Circulation at wake LE panels is given in paper as :
 #           Γw0 = L7*Γw - L8*b      (1)
-#  But from kutta condition it is also equal to body TE panels and circulation on body is given as:
+#  But from kutta condition it is also equal to body TE circulation i.e. Kutta condition and circulation on body is given as:
 #           Γb  = L3*Γw - L4*b      (2)
 #  So equation (1) can also be written as:
 #           Γw0  = Γb[TEindices] = L3[TEindices,:]*Γw - L4[TEindices,:]*b
@@ -69,6 +75,13 @@ function UnsteadyWakeInfluence(rCollocation::Vector{Point3{T}}, normal, ringMesh
     return (sparse(K8), sparse(K9)), (L3, L4, L5, L6, L7, L8, L9, L10)
 end
 
+"""
+$(TYPEDEF)
+
+An unsteady 2D aerodynamic model based on the Continuous-Time Unsteady Vortex Lattice Method.
+
+$(TYPEDFIELDS)
+"""
 struct UnsteadyAeroModel2D{T} <: AeroModel
     mesh::GeometryBasics.Mesh{3, T}
     ringMesh::GeometryBasics.Mesh{3, T}
@@ -146,6 +159,11 @@ function FullWakeFromTransportWakeOperator(bodySizes, wakeSizes, L7, L8)
     return L9, L10
 end
 
+"""
+$(SIGNATURES)
+
+Calculate the quasi-steady portion of the aerodynamic forces.
+"""
 function SteadyForce(Γw, b, vb, ρ, model)
     Γb = model.L3*Γw - model.L4*b
     Γwake = GetFullWakeVector(Γw, b, model)
@@ -154,16 +172,31 @@ function SteadyForce(Γw, b, vb, ρ, model)
     return Fa, Γb
 end
 
+"""
+$(SIGNATURES)
+
+Solve for the steady-state wake circulation given normal wash `b`.
+"""
 function SolveSteadyCirculation(b, model::UnsteadyAeroModel2D)
     Γw = - (model.K8 \ (model.K9*b))
     return Γw
 end
 
+"""
+$(SIGNATURES)
+
+Calculate the full wake circulation vector (including the Kutta edge) from transport wake states.
+"""
 function GetFullWakeVector(Γw::Vector, b::Vector, model::UnsteadyAeroModel2D)
     Γwake = model.L9 * Γw + model.L10 * b
     return Γwake
 end
 
+"""
+$(SIGNATURES)
+
+Solve for the steady-state aerodynamic solution of an unsteady model.
+"""
 function AeroSolve(vb, aeroModel::UnsteadyAeroModel2D, ρ = 1.225)
     b = NormalWash(vb, aeroModel)
     Γw = SolveSteadyCirculation(b, aeroModel)
@@ -172,6 +205,11 @@ function AeroSolve(vb, aeroModel::UnsteadyAeroModel2D, ρ = 1.225)
     return sol
 end
 
+"""
+$(SIGNATURES)
+
+Calculate the time derivative of the wake circulation states (dΓw/dt).
+"""
 function SolveCirculation(Γw::Vector, vb, model::UnsteadyAeroModel2D)
     b = NormalWash(vb, model)
     dΓw = SolveCirculation(Γw, b, model)
@@ -184,7 +222,9 @@ function SolveCirculation(Γw::Vector, b::Vector, model::UnsteadyAeroModel2D)
 end
 
 """
-Returns unsteady aerodynamic forces at panel center
+$(SIGNATURES)
+
+Calculate the unsteady contribution to aerodynamic forces based on circulation time derivatives.
 """
 function UnsteadyPanelForces(Γw, b, ρ, model, db)
     dΓb = model.L5*Γw .+ model.L6*b .- model.L4*db
@@ -199,7 +239,9 @@ function UnsteadyPanelForces(Γw, b, ρ, model)
 end
 
 """
-Returns total aerodynamic forces including steady and unsteady contributions
+$(SIGNATURES)
+
+Return total aerodynamic forces (Steady + Unsteady) for given states and kinematics.
 """
 function SolveForces(Γw, vb, dvb, model::UnsteadyAeroModel2D, ρ = 1.225)
     b = NormalWash(vb, model)
@@ -209,4 +251,9 @@ function SolveForces(Γw, vb, dvb, model::UnsteadyAeroModel2D, ρ = 1.225)
     return Fa, Fu
 end
 
+"""
+$(SIGNATURES)
+
+Return the number of states in the unsteady state-space model.
+"""
 NumberOfStates(model::UnsteadyAeroModel2D) = size(model.K8, 1)

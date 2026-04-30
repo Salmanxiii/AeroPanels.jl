@@ -1,5 +1,12 @@
 abstract type AeroSurface{T} end
 
+"""
+$(TYPEDEF)
+
+A 2D aerodynamic surface defined by a mesh of points in 3D space.
+
+$(TYPEDFIELDS)
+"""
 struct AeroSurface2D{T<:Real} <: AeroSurface{T}
     X::Matrix{T}
     Y::Matrix{T}
@@ -8,6 +15,11 @@ struct AeroSurface2D{T<:Real} <: AeroSurface{T}
     ns::Int
 end
 
+"""
+    AeroSurface2D(nc, ns; chord, span, xDivs, camber, sweep, dihedral, origin)
+
+High-level constructor for an `AeroSurface2D`.
+"""
 function AeroSurface2D(nc::Int, ns::Int;
    chord::Union{Real, Tuple{Real,Real}, AbstractVector} = 1,
    span::Union{Real, AbstractVector} = 1,
@@ -106,6 +118,12 @@ end
 MirrorX(s::AeroSurface2D) = AeroSurface2D(-s.X, s.Y, s.Z, s.nc, s.ns)
 MirrorY(s::AeroSurface2D) = AeroSurface2D(s.X, -s.Y, s.Z, s.nc, s.ns)
 MirrorZ(s::AeroSurface2D) = AeroSurface2D(s.X, s.Y, -s.Z, s.nc, s.ns)
+
+"""
+    Mirror(surface, axis)
+
+Mirror an `AeroSurface2D` along a given axis (1=X, 2=Y, 3=Z).
+"""
 function Mirror(surface::AeroSurface2D{T}, axis) where T
     if axis==1
         return MirrorX(surface)

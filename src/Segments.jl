@@ -1,3 +1,13 @@
+
+############################## Mesh Segments  # #########################################
+
+"""
+$(TYPEDEF)
+
+Properties and mapping indices for panel segments.
+
+$(TYPEDFIELDS)
+"""
 struct SegmentProperties{T}
     mid::Vector{Point3{T}}
     r::Vector{Point3{T}}
@@ -10,6 +20,11 @@ struct SegmentProperties{T}
     nSpanSegments::Int
     nChordSegments::Int
     nTotalSegments::Int
+end
+
+function SegmentProperties(mid, r, aic3Ring, aic3Wake, indPosSeg, indPosPanel, indNegSeg, indNegPanel, nss, ncs, nts)
+    T = eltype(mid[1])
+    return SegmentProperties{T}(mid, r, aic3Ring, aic3Wake, indPosSeg, indPosPanel, indNegSeg, indNegPanel, nss, ncs, nts)
 end
 
 function BuildSpanwiseIndices(sizes::Sizes)
@@ -61,6 +76,11 @@ function BuildSegmentIndices(sizes::Sizes)
     return [pos_seg1; pos_seg2], [pos_pan1; pos_pan2], [neg_seg1; neg_seg2], [neg_pan1; neg_pan2]
 end
 
+"""
+    ProcessSegments(meshRing, sizesRing, meshWake, sizesWake, symmXZ)
+
+Initialize and calculate all segment properties.
+"""
 function ProcessSegments(meshRing::GeometryBasics.Mesh{3, T}, sizesRing, meshWake::GeometryBasics.Mesh{3, T}, sizesWake, symmXZ) where T
     nss, ncs = TotalSegments(sizesRing)
     nr = sizesRing.totalPanels
@@ -119,10 +139,21 @@ function UpdateSegmentAIC!(segmentProps, meshRing, meshWake, symmXZ)
     return nothing
 end
 
+"""
+    SegmentCirculation!(Γseg, Γp, sp)
+
+Calculate segment circulations from panel circulations in-place.
+"""
 function SegmentCirculation!(Γseg, Γp, sp::SegmentProperties)
     Γseg .= 0
     Γseg[sp.indPosSeg] .= @view Γp[sp.indPosPanel]
     Γseg[sp.indNegSeg] .-= @view Γp[sp.indNegPanel]
     return Γseg
 end
+
+"""
+    SegmentCirculation(Γp, sp)
+
+Return the segment circulation vector.
+"""
 SegmentCirculation(Γp::AbstractArray{T}, sp::SegmentProperties) where T = SegmentCirculation!(zeros(T, size(sp.aic3Ring,1)), Γp, sp)

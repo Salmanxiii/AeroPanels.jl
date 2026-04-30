@@ -1,5 +1,12 @@
 
 ############################# Model Properties ######################################
+"""
+$(TYPEDEF)
+
+Aerodynamic model properties.
+
+$(TYPEDFIELDS)
+"""
 @kwdef struct AeroModelProperties{T}
     c::T
     b::T
@@ -12,6 +19,13 @@ end
 
 FlowAxis(s::AeroModelProperties) = -s.bodyFixedCS[:, 1]
 ############################# PanelProperties ######################################
+"""
+$(TYPEDEF)
+
+Properties of the panels in the aerodynamic mesh.
+
+$(TYPEDFIELDS)
+"""
 struct PanelProperties{T}
     normal::Vector{Point3{T}}
     rMid::Vector{Point3{T}}

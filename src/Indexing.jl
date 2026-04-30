@@ -1,6 +1,12 @@
 ############################## Indexing Struct ####################################
 
-# Struct to store the sizes of the mesh (used for indexing)
+"""
+$(TYPEDEF)
+
+Struct to store the sizes and pre-calculated indices of the mesh elements.
+
+$(TYPEDFIELDS)
+"""
 struct Sizes
     sizes::Vector{Tuple{Int, Int}}
     nSurfaces::Int
@@ -50,9 +56,27 @@ function Sizes(sizesVec::Vector{Tuple{Int, Int}})
      totalChordSegments, panelIndices, vertexIndices, spanSegmentIndices, chordSegmentIndices)
 end
 
+"""
+    PanelIndex(s::Int, i::Int, j::Int, sizes::Sizes)
+
+Return the global index of the panel `(i, j)` on surface `s`.
+"""
 PanelIndex(s::Int, i::Int, j::Int, sizes::Sizes) = sizes.panelIndices[s][i, j]
+
+"""
+    TEPanelIndex(sizes::Sizes)
+
+Return a vector of global indices for all panels along the trailing edges.
+"""
 TEPanelIndex(sizes::Sizes) = [PanelIndex(s, nc, j, sizes) for (s, nc, ns) in sizes for j in 1:ns]
+
+"""
+    LEPanelIndex(sizes::Sizes)
+
+Return a vector of global indices for all panels along the leading edges.
+"""
 LEPanelIndex(sizes::Sizes) = [PanelIndex(s, 1, j, sizes)  for (s, nc, ns) in sizes for j in 1:ns]
+
 NonKuttaPanelIndex(sizes::Sizes) = [PanelIndex(s, i, j, sizes)  for (s, nc, ns) in sizes for i in 2:nc for j in 1:ns]
 
 VertexIndex(s::Int, i::Int, j::Int, sizes::Sizes) = sizes.vertexIndices[s][i, j]
