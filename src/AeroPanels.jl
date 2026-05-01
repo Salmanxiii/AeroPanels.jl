@@ -31,5 +31,8 @@ export BodyAccelerations, AerodynamicAnglesDerivatives
 export UnsteadyAeroModel2D, UnsteadyWakeInfluence, FullWakeFromTransportWakeOperator
 export GetFullWakeVector, SolveSteadyCirculation, SolveCirculation, UnsteadyPanelForces
 export SolveForces, NumberOfStates
+export PlotModel
+
+function PlotModel end
 
 end
