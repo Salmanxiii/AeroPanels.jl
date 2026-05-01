@@ -9,7 +9,8 @@ makedocs(
     ),
     pages = [
         "Home" => "index.md",
-        "Theory" => "theory.md",
+        "Steady Theory" => "steady_theory.md",
+        "Unsteady Theory" => "unsteady_theory.md",
         "Examples" => "examples.md",
         "API Reference" => "api.md",
     ]

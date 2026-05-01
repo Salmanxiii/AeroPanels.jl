@@ -102,21 +102,24 @@ fig1 = PlotModel(model)
 
 ### Visual Examples
 
-**Mesh and Wake**
-![Mesh with Wake](assets/mesh_with_wake.png)
+**Surface Mesh**
+
+![Surface Mesh](assets/mesh_only.png)
+
+**Panel and Wake Circulation**
 
 ```julia
 # Plot with circulation colormap (constant color per panel)
 fig3 = PlotModel(model, plotWake=true, Γp=Γp, Γw=Γw)
 ```
 
-**Panel and Wake Circulation**
 ![Circulation](assets/circulation.png)
+
+**Aerodynamic Forces**
 
 ```julia
 # Plot forces (wake hidden for better vector visibility)
 fig4 = PlotModel(model, plotWake=false, Γp=Γp, Γw=Γw, plotForces=true, sol=sol, forceScale=0.05)
 ```
 
-**Aerodynamic Forces**
 ![Forces](assets/forces.png)
