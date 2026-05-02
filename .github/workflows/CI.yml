@@ -39,7 +39,7 @@ jobs:
       - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
-  docs:
+docs:
     name: Documentation
     runs-on: ubuntu-latest
     permissions:
@@ -51,17 +51,28 @@ jobs:
       - uses: julia-actions/setup-julia@v2
         with:
           version: '1'
+      
+      # 1. Install the official Makie graphics dependencies
+      - name: Install binary dependencies
+        run: sudo apt-get update && sudo apt-get install -y xorg-dev mesa-utils xvfb libgl1 freeglut3-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev
+      
       - uses: julia-actions/cache@v2
+      
+      # 2. Build package
       - uses: julia-actions/julia-buildpkg@v1
-      - uses: julia-actions/julia-docdeploy@v1
+      
+      # 3. Run Doctests explicitly via xvfb-run
+      - name: Run doctests
+        run: |
+          xvfb-run -s '-screen 0 1024x768x24' julia --project=docs --color=yes -e '
+            using Documenter: DocMeta, doctest
+            using AeroPanels
+            DocMeta.setdocmeta!(AeroPanels, :DocTestSetup, :(using AeroPanels); recursive=true)
+            doctest(AeroPanels)'
+
+      # 4. Build and Deploy directly via xvfb-run (replacing julia-docdeploy)
+      - name: Build and deploy docs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
-          JULIA_PLOT_HEADLESS: "true"
-      - name: Run doctests
-        shell: julia --project=docs --color=yes {0}
-        run: |
-          using Documenter: DocMeta, doctest
-          using AeroPanels
-          DocMeta.setdocmeta!(AeroPanels, :DocTestSetup, :(using AeroPanels); recursive=true)
-          doctest(AeroPanels)
+        run: xvfb-run -s '-screen 0 1024x768x24' julia --project=docs --color=yes docs/make.jl
