@@ -1,9 +1,10 @@
 name = "AeroPanels"
 uuid = "1f493142-7360-467d-a726-5f88053bc251"
-version = "0.1.0"
 authors = ["contributors"]
+version = "0.1.0"
 
 [deps]
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -20,13 +21,14 @@ AeroPanelsMakieExt = "GLMakie"
 [compat]
 DocStringExtensions = "0.9.3"
 GLMakie = "0.13.9"
-LinearAlgebra = "1.12.0"
-SparseArrays = "1.12.0"
-StaticArrays = "1.9.18"
-julia = "1.12"
+LinearAlgebra = "1.10"
+SparseArrays = "1.10"
+StaticArrays = "1.9"
+julia = "1.10"
 
 [extras]
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test"]
+test = ["ForwardDiff", "JSON", "Test"]

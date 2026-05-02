@@ -2,5 +2,6 @@ using AeroPanels
 using Test
 
 @testset "AeroPanels.jl" begin
-    # Write your tests here.
+    include("drag/DragVerification.jl")
+    include("sweep/SweepVerification.jl")
 end

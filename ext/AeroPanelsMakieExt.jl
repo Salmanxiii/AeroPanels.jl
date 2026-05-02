@@ -34,7 +34,7 @@ function AeroPanels.PlotModel(model::AeroModel;
     forceScale=1.0)
     
     fig = Figure()
-    ax = Axis3(fig[1, 1], aspect = :data)
+    ax = Axis3(fig[1, 1], aspect = :equal)
 
     # Plot panel circulation if provided, else wireframe
     if !isnothing(Γp)

@@ -1,5 +1,13 @@
 [deps]
 AeroPanels = "1f493142-7360-467d-a726-5f88053bc251"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
+Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
 LiveServer = "24249f21-da20-56a4-8eb1-6a02cf4ae2e6"
+OrdinaryDiffEqTsit5 = "b1df2697-797e-41e3-8120-5422d3b24e4a"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"

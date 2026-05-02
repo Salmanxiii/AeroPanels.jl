@@ -22,7 +22,7 @@ include("Misc.jl")
 # Exports
 export Sizes, IndicesMatrix, SelectionOperator
 export AeroModelProperties, FlowAxis, PanelProperties, SegmentProperties, ProcessSegments
-export SegmentCirculation, SegmentInducedVelocity, SegmentForce
+export SegmentCirculation, SegmentInducedVelocity, SegmentForce, NormalWash
 export AeroSurface, AeroSurface2D, Mirror, NoSegments
 export WakeModel, CreateAeroMesh, RingMesh, FlatWakeMesh
 export VORTXL, VORING, Influence, SteadyWakeInfluence
