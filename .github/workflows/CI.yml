@@ -63,7 +63,7 @@ jobs:
         
         # 2.5 Explicitly instantiate the separate docs environment
         - name: Instantiate Docs Environment
-          run: julia --project=docs -e 'using Pkg; Pkg.instantiate()'
+          run: julia --project=docs -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
 
         # 3. Run Doctests explicitly via xvfb-run
         - name: Run doctests
