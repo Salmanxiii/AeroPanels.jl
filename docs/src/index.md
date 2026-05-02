@@ -49,7 +49,7 @@ println("Drag Coefficient (CD): ", round(sol.CD, digits=4))
 ### Next Steps
 
 - Read the [Steady Theory](steady_theory.md) and [Unsteady Theory](unsteady_theory.md) pages to understand the mathematics behind the solvers.
-- Check out the [Examples](examples.md) page for more advanced usage, including unsteady Wagner problem simulations and Makie visualizations.
+- Check out the Examples page for more advanced usage, including unsteady Wagner problem simulations and Makie visualizations.
 - Browse the [API Reference](api.md) for detailed function documentation.
 
 ```@index
