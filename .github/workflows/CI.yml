@@ -61,6 +61,10 @@ jobs:
         # 2. Build package
         - uses: julia-actions/julia-buildpkg@v1
         
+        # 2.5 Explicitly instantiate the separate docs environment
+        - name: Instantiate Docs Environment
+          run: julia --project=docs -e 'using Pkg; Pkg.instantiate()'
+
         # 3. Run Doctests explicitly via xvfb-run
         - name: Run doctests
           run: |
