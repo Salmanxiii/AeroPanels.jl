@@ -101,9 +101,15 @@ struct UnsteadyAeroModel2D{T} <: AeroModel
     L8::Matrix{T}
     L9::SparseMatrixCSC{T, Int}
     L10::SparseMatrixCSC{T, Int}
+    controlSurfaces::Vector{ControlSurface{T}}
+    monitorPoints::Vector{MonitorPoint{T}}
 end
 
-function UnsteadyAeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroModelProperties{T}, V::T; nWake=80, wakeLength=20.) where T
+function UnsteadyAeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroModelProperties{T}, V::T;
+     nWake=80, wakeLength=20.,
+     controlSurfaces=ControlSurface{T}[],
+     monitorPoints=MonitorPoint{T}[]) where T
+
     mesh, sizes = CreateAeroMesh(surfaces)
     ringMesh = RingMesh(mesh, sizes)
     wakeMesh, wakeSizes = FlatWakeMesh(ringMesh, sizes, props; nWake=nWake, wakeLength=wakeLength)
@@ -115,7 +121,7 @@ function UnsteadyAeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroMode
     panelProperties.normal, ringMesh, wakeMesh, sizes, wakeSizes, props.symmXZ, Δt);
     segmentProps = ProcessSegments(ringMesh, sizes, wakeMesh, wakeSizes, props.symmXZ)
     return UnsteadyAeroModel2D(mesh, ringMesh, wakeMesh, sizes, wakeSizes, panelProperties,
-    props, segmentProps, K8, K9, L3, L4, L5, L6, L7, L8, L9, L10)
+    props, segmentProps, K8, K9, L3, L4, L5, L6, L7, L8, L9, L10, controlSurfaces, monitorPoints)
 end
 
 function FullWakeFromTransportWakeOperator(bodySizes, wakeSizes, L7, L8)

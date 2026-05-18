@@ -82,6 +82,8 @@ NonKuttaPanelIndex(sizes::Sizes) = [PanelIndex(s, i, j, sizes)  for (s, nc, ns) 
 VertexIndex(s::Int, i::Int, j::Int, sizes::Sizes) = sizes.vertexIndices[s][i, j]
 TEVertexIndex(sizes::Sizes) = [VertexIndex(s, nc+1, j, sizes) for (s, nc, ns) in sizes for j in 1:ns+1]
 LEVertexIndex(sizes::Sizes) = [VertexIndex(s, 1, j, sizes)    for (s, nc, ns) in sizes for j in 1:ns+1]
+PanelVertexIndices(s, i, j, sizes) = (VertexIndex(s, i, j, sizes), VertexIndex(s, i, j+1, sizes), VertexIndex(s, i+1, j+1, sizes), VertexIndex(s, i+1, j, sizes))
+
 
 SpanSegmentIndex(s::Int, i::Int, j::Int, sizes::Sizes) = sizes.spanSegmentIndices[s][i, j]
 ChordSegmentIndex(s::Int, i::Int, j::Int, sizes::Sizes) = sizes.chordSegmentIndices[s][i, j]

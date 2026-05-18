@@ -15,6 +15,7 @@ $(TYPEDFIELDS)
     symmXY::Bool = false
 #    flowAxis::SVector{3,T} = SA[1.0, 0., 0.]
     bodyFixedCS::SMatrix{3,3,T,9} = SMatrix{3,3}(-1.,0,0, 0,1,0, 0, 0,-1)
+    CG::SVector{3, T} = SVector{3}(0., 0., 0.)
 end
 
 FlowAxis(s::AeroModelProperties) = -s.bodyFixedCS[:, 1]

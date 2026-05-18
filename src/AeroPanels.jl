@@ -16,8 +16,11 @@ include("AeroSurface2D.jl")
 include("Meshing.jl")
 include("Influence.jl")
 include("SteadyAeroModel2D.jl")
+include("ControlSurfaces.jl")
+include("MonitorPoints.jl")
 include("UnsteadyAeroModel2D.jl")
 include("Misc.jl")
+
 
 # Exports
 export Sizes, IndicesMatrix, SelectionOperator
