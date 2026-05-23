@@ -3,6 +3,8 @@ GeometryToBodyAxis(Vec, props::AeroModelProperties) = props.bodyFixedCS * Vec
 BodyFixedToStabilityAxis(Vec, α) = Point3(Vec[1] * cos(α) + Vec[3] * sin(α),
  Vec[2], -Vec[1] * sin(α) + Vec[3] * cos(α))
 
+GeometryToStabilityAxis(Vec, α, props::AeroModelProperties) = BodyFixedToStabilityAxis(GeometryToBodyAxis(Vec, props), α)
+
 BodyVelocity(V, α, β=0.) = Point3(V * cos(α) * cos(β), V * sin(β), V * sin(α) * cos(β))
 
 function BodyAccelerations(Vt, dVt, α, dα, β=0., dβ=0.)

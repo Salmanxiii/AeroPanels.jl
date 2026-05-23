@@ -15,10 +15,11 @@ include("Segments.jl")
 include("AeroSurface2D.jl")
 include("Meshing.jl")
 include("Influence.jl")
-include("SteadyAeroModel2D.jl")
+include("Steady/SteadyAeroModel2D.jl")
+include("Steady/solve.jl")
 include("ControlSurfaces.jl")
 include("MonitorPoints.jl")
-include("UnsteadyAeroModel2D.jl")
+include("Unsteady/UnsteadyAeroModel2D.jl")
 include("Misc.jl")
 
 
@@ -35,6 +36,8 @@ export UnsteadyAeroModel2D, UnsteadyWakeInfluence, FullWakeFromTransportWakeOper
 export GetFullWakeVector, SolveSteadyCirculation, SolveCirculation, UnsteadyPanelForces
 export SolveForces, NumberOfStates
 export PlotModel
+
+export GetTotalForces, GetCoefficients, AeroSolve!
 
 function PlotModel end
 
