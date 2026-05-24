@@ -151,11 +151,9 @@ function AeroSolve!(cache, vb, ωb, δc, dδc, rs, vs, model, ρ=1.225)
 end
 
 function GetTotalForces(Fa, model)
-    F = sum(Fa)
     r = AerodynamicLoadLocation(model)
     CG = model.modelProperties.CG
-    M = sum(cross(r[i]-CG, Fa[i]) for i in eachindex(r, Fa))
-    return F, M
+    return IntegrateLoad(Fa, r, CG)
 end
 
 function GetStabilityCoefficients(Fa, vb, ρ, model)

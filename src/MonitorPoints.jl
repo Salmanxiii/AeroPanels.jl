@@ -6,10 +6,25 @@ struct MonitorPoint{T}
     segmentIndices::Vector{Int}     
 end
 
-function MonitorPointLoads(F_vec, R_vec, mp::MonitorPoint)
-    F_global = sum(F_vec[i] for i in indices)
-    M_global = sum(cross(R_vec[i] - mp.origin, F_vec[i]) for i in indices) 
-    F_local = mp.orientation * F_global
-    M_local = mp.orientation * M_global
+function IntegrateLoad(Fvec::AbstractArray{<:AbstractArray{A}},
+                       Rvec::AbstractArray{<:AbstractArray{B}},
+                       Rref::AbstractArray{C}) where {A, B, C}
+    n = length(Fvec)
+    n == length(Rvec) || throw(DimensionMismatch("Fvec and Rvec must have the same length ($n != $(length(Rvec)))"))
+
+    F_total = zero(SVector{3, A})
+    M_total = zero(SVector{3, promote_type(A, B, C)})
+
+    @batch reduction=((+, F_total), (+, M_total)) for i in eachindex(Fvec)
+        F_total += Fvec[i]
+        M_total += cross(Rvec[i] - Rref, Fvec[i])
+    end
+    return F_total, M_total
+end
+
+function MonitorPointLoads(FVec, RVec, mp::MonitorPoint)
+    F, M = IntegrateLoad(view(Fvec, mp.indecs), view(Rvec, mp.indices), mp.origin)
+    F_local = mp.orientation * F
+    M_local = mp.orientation * M
     return [F_local; M_local]
 end
