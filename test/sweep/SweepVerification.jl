@@ -19,7 +19,15 @@ function calculate_cla(AR, sweep_deg; nc=5, ns=40)
     props = AeroModelProperties(c=chord, b=2*span, S=2*span*chord)
     model = AeroModel2D([surf1, surf2], props)
     
-    f(α) = -AeroSolve(50.0, α, model).coefficientStability[3]
+    V = 50.0
+
+    function f(alpha)
+        vb = BodyVelocity(V, deg2rad(alpha))
+        cache = AeroSolve(vb, model)
+        cf, _ = GetStabilityCoefficients(cache.Fa, vb, 1.225, model)
+        return -cf[3]
+    end
+    
     return ForwardDiff.derivative(f, 0.0) * 57.3
 end
 

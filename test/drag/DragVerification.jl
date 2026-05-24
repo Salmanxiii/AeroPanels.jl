@@ -18,12 +18,25 @@ function calculate_aero_data(AR; nc=5, ns=60)
     props = AeroModelProperties(c=chord, b=2*span, S=2*span*chord)
     model = AeroModel2D([surf1, surf2], props)
     
-    sol = AeroSolve(50.0, 2.0, model)
-    cl = -sol.coefficientStability[3]
-    cd = -sol.coefficientStability[1]
+    # Simplified API setup
+    V = 50.0
+    α = 2.0
+    vb = BodyVelocity(V, deg2rad(α))
+    
+    cache = AeroSolve(vb, model)
+    
+    CFstab, CMstab = GetStabilityCoefficients(cache.Fa, vb, 1.225, model)
+    cl = -CFstab[3]
+    cd = -CFstab[1]
     k = cd / cl^2
     
-    f(α) = -AeroSolve(50.0, α, model).coefficientStability[3]
+    function f(alpha)
+        v_diff = BodyVelocity(V, deg2rad(alpha))
+        c_diff = AeroSolve(v_diff, model)
+        cf, _ = GetStabilityCoefficients(c_diff.Fa, v_diff, 1.225, model)
+        return -cf[3]
+    end
+    
     cla = ForwardDiff.derivative(f, 0.0) * 57.3
     
     return cla, k
