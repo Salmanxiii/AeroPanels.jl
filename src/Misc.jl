@@ -31,5 +31,3 @@ function AerodynamicAnglesDerivatives(vb, dvb)
     dβ = (v̇ * Vt - v * dVt) / (Vt * sqrt(U2W2))
     return dα, dβ, dVt
 end
-
-GeometryToStabilityAxis(Vec, α, props::AeroModelProperties) =  BodyFixedToStabilityAxis(GeometryToBodyAxis(Vec, props), α)
