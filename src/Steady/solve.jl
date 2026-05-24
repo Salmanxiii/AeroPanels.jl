@@ -1,7 +1,3 @@
-# vb: body velocity, ab: acceleration, ωb: angular velocity, dωb: angular acceleration,
-# δc: control surface deflection, dδc: CS deflection derivative, ddδc: CS deflection double derivaitve,
-# vd: disturbance velocity at mesh vertices, ad: disturbance acceleration
-
 function CreateCacheArrays(model, T)
     nVert = model.sizes.totalVertices
     nPan = model.sizes.totalPanels
@@ -92,40 +88,58 @@ function CalculateAerodynamicForce!(Fa, Γp, Γw, Γs, vVertex, model::AeroModel
     
     nss = model.segmentProps.nSpanSegments
     sizes = model.sizes
-    # loop over Spanwise Segments
-    for (s, nc, ns) in model.sizes
+    # loop over surfaces
+    for (s, nc, ns) in sizes
+        # Spanwise Segments
         @batch for i in 1:nc
             for j in 1:ns
-                i1, i2, i3, i4 = PanelVertexIndices(s, i, j, sizes)
+                i1, i2 = VertexIndex(s, i, j, sizes), VertexIndex(s, i+1, j, sizes)
+                i3, i4 = VertexIndex(s, i, j+1, sizes), VertexIndex(s, i+1, j+1, sizes)
                 v1, v2, v3, v4 = vVertex[i1], vVertex[i2], vVertex[i3], vVertex[i4]
+                # Velocity at mid-segment (1/4 chord of the spanwise segment)
                 v = 0.375*(v1 + v2) + 0.125*(v3 + v4)
                 m = SpanSegmentIndex(s, i, j, sizes)
                 Fa[m] = ρ * Γs[m] * cross(Fa[m] + v, model.segmentProps.r[m])
             end
-            for k in 1:ns+1
-                v1 = vVertex[VertexIndex(s, i, k, sizes)]
-                v2 = vVertex[VertexIndex(s, i+1, k, sizes)]
+        end
+        # Trailing Edge segments (force is zero because Γs=0)
+        for j in 1:ns 
+            m = SpanSegmentIndex(s, nc+1, j, sizes)
+            Fa[m] = zero(eltype(Fa))
+        end
+        # Chordwise Segments
+        @batch for i in 1:nc
+            for j in 1:ns+1
+                i1, i2 = VertexIndex(s, i, j, sizes), VertexIndex(s, i+1, j, sizes)
+                v1, v2 = vVertex[i1], vVertex[i2]
                 v = 0.25*v1 + 0.75*v2
+                m = ChordSegmentIndex(s, i, j, sizes)
                 Fa[m+nss] = ρ * Γs[m+nss] * cross(Fa[m+nss] + v, model.segmentProps.r[m+nss])
             end
-        end
-        # for i = nc+1 trailing edge segments force = 0 because Γs = 0
-        for j in 1:ns 
-                m = SpanSegmentIndex(s, nc+1, j, sizes)
-                Fa[m] = zeros(eltype(Fa))
         end
     end
     return nothing
 end
 
-function AeroSolve(vb::AbstractArray{A}, ωb::AbstractArray{B},
-        δc::AbstractArray{C}, dδc::AbstractArray{D},
-        rs::AbstractArray, vs::AbstractArray, model, ρ=1.225)
+function AeroSolve(vb::AbstractArray, model::AeroModel;
+        ωb=SA[0.0, 0.0, 0.0],
+        δc=zeros(eltype(vb), length(model.controlSurfaces)),
+        dδc=zeros(eltype(vb), length(model.controlSurfaces)),
+        rs=fill(zero(Point3{eltype(vb)}), model.sizes.totalVertices),
+        vs=fill(zero(Point3{eltype(vb)}), model.sizes.totalVertices),
+        ρ=1.225)
 
-    T = promote_type(A, B, C, D)
+    T = promote_type(eltype(vb), eltype(ωb), eltype(δc), eltype(dδc))
     cache = CreateCacheArrays(model, T)
     AeroSolve!(cache, vb, ωb, δc, dδc, rs, vs, model, ρ)
     return cache
+end
+
+function AeroSolve(vb::AbstractArray{A}, ωb::AbstractArray{B},
+    δc::AbstractArray{C}, dδc::AbstractArray{D},
+    rs::AbstractArray, vs::AbstractArray, model, ρ=1.225) where {A, B, C, D}
+
+    AeroSolve(vb, model; ωb=ωb, δc=δc, dδc=dδc, rs=rs, vs=vs, ρ=ρ)
 end
 
 function AeroSolve!(cache, vb, ωb, δc, dδc, rs, vs, model, ρ=1.225)
@@ -144,14 +158,14 @@ function GetTotalForces(Fa, model)
     return F, M
 end
 
-function GetCoefficients(Fa, vb, ρ,model)
+function GetStabilityCoefficients(Fa, vb, ρ, model)
     mProps = model.modelProperties
 
     F, M = GetTotalForces(Fa, model)
     α, β, V = AerodynamicAngles(vb)
-    Q = 0.5 * ρ * V^2
+    QS = 0.5 * ρ * V^2 * mProps.S
     
-    CFstab = BodyFixedToStabilityAxis(F, α) / Q / mProps.S
-    CMstab = (GeometryToStabilityAxis(M, α, mProps) / Q / mProps.S) ./ SA[mProps.b, mProps.c, mProps.b] 
+    CFstab = GeometryToStabilityAxis(F, α, mProps) / QS
+    CMstab = (GeometryToStabilityAxis(M, α, mProps) / QS) ./ SA[mProps.b, mProps.c, mProps.b] 
     return CFstab, CMstab
 end
