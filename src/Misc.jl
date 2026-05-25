@@ -7,6 +7,14 @@ GeometryToStabilityAxis(Vec, α, props::AeroModelProperties) = BodyFixedToStabil
 
 BodyVelocity(V, α, β=0.) = Point3(V * cos(α) * cos(β), V * sin(β), V * sin(α) * cos(β))
 
+function ConvertToCoefficients(F, M, vb, ρ, mProps)
+    α, β, V = AerodynamicAngles(vb)
+    QS = 0.5 * ρ * V^2 * mProps.S
+    CF = F / QS
+    CM = M / QS ./ SA[mProps.b, mProps.c, mProps.b]
+    return CF, CM
+end
+
 function BodyAccelerations(Vt, dVt, α, dα, β=0., dβ=0.)
     sα, cα = sincos(α)
     sβ, cβ = sincos(β)
