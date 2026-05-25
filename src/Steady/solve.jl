@@ -167,3 +167,13 @@ function GetStabilityCoefficients(cache, vb, ρ, model)
     return CFstab, CMstab
 end
 
+function MonitorPointLoads!(Fmp, cache, model::AeroModel2D)
+    for (i, mp) in enumerate(model.monitorPoints)
+        indices = mp.segmentIndices
+        Fvec = @view cache.Fa[indices]
+        Rvec = @view cache.Ra[indices]
+        F, M = IntegrateLoad(Fvec, Rvec, mp.origin)
+        Fmp[6(i-1)+1:6(i-1)+6] .= [mp.orientation * F; mp.orientation * M]
+    end
+    return nothing
+end
