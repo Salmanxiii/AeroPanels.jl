@@ -12,9 +12,11 @@ function CreateCacheArrays(model, T)
     Γp = zeros(T, nPan)
     Γw = zeros(T, nWake)
     Γs = zeros(T, nSSeg + nCSeg)
-    Fa = zeros(TArray, nSSeg + nCSeg)
+    Fa = zeros(TArray, nSSeg + nCSeg) # Aerodynamic forces
+    Ra = zeros(TArray, nSSeg + nCSeg) # Location of aerodynamic forces
+    Ra .= model.segmentProps.mid
 
-    return (rVertex=rVertex, vVertex=vVertex, b=b, Γp=Γp, Γw=Γw, Γs=Γs, Fa=Fa)
+    return (rVertex=rVertex, vVertex=vVertex, b=b, Γp=Γp, Γw=Γw, Γs=Γs, Fa=Fa, Ra=Ra)
 end
 
 function AddSteadyKinematics!(rVertex, vVertex,
@@ -150,20 +152,18 @@ function AeroSolve!(cache, vb, ωb, δc, dδc, rs, vs, model, ρ=1.225)
     return nothing
 end
 
-function GetTotalForces(Fa, model)
-    r = AerodynamicLoadLocation(model)
+function GetTotalForces(cache, model)
     CG = model.modelProperties.CG
-    return IntegrateLoad(Fa, r, CG)
+    return IntegrateLoad(cache.Fa, cache.Ra, CG)
 end
 
-function GetStabilityCoefficients(Fa, vb, ρ, model)
+function GetStabilityCoefficients(cache, vb, ρ, model)
     mProps = model.modelProperties
-
-    F, M = GetTotalForces(Fa, model)
-    α, β, V = AerodynamicAngles(vb)
-    QS = 0.5 * ρ * V^2 * mProps.S
-    
-    CFstab = GeometryToStabilityAxis(F, α, mProps) / QS
-    CMstab = (GeometryToStabilityAxis(M, α, mProps) / QS) ./ SA[mProps.b, mProps.c, mProps.b] 
+    F, M = GetTotalForces(cache, model)
+    α, _, _ = AerodynamicAngles(vb)    
+    Fstab = GeometryToStabilityAxis(F, α, mProps)
+    Mstab = GeometryToStabilityAxis(M, α, mProps)
+    CFstab, CMstab = ConvertToCoefficients(Fstab, Mstab, vb, ρ, mProps)
     return CFstab, CMstab
 end
+

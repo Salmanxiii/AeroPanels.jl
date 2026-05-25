@@ -24,7 +24,7 @@ function calculate_cla(AR, sweep_deg; nc=5, ns=40)
     function f(alpha)
         vb = BodyVelocity(V, deg2rad(alpha))
         cache = AeroSolve(vb, model)
-        cf, _ = GetStabilityCoefficients(cache.Fa, vb, 1.225, model)
+        cf, _ = GetStabilityCoefficients(cache, vb, 1.225, model)
         return -cf[3]
     end
     
