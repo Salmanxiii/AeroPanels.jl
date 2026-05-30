@@ -124,6 +124,18 @@ function UnsteadyAeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroMode
     props, segmentProps, K8, K9, L3, L4, L5, L6, L7, L8, L9, L10, controlSurfaces, monitorPoints)
 end
 
+"""
+    (model::UnsteadyAeroModel2D)(dΓw1, Γw1, b, t=0.0)
+
+Functor for OrdinaryDiffEq. Solves for the wake transport states derivative.
+Note: normalwash `b` should be passed as the parameter or constant in the solver loop.
+"""
+function (model::UnsteadyAeroModel2D)(dΓw1, Γw1, b, t=0.0)
+    mul!(dΓw1, model.K8, Γw1)
+    mul!(dΓw1, model.K9, b, 1.0, 1.0)
+    return nothing
+end
+
 function FullWakeFromTransportWakeOperator(bodySizes, wakeSizes, L7, L8)
     # Γw0(LE) = L7*Γw(transport) - L8*b
     # Γwake(full wake) = L9 * Γw + L10 * b
@@ -163,98 +175,6 @@ function FullWakeFromTransportWakeOperator(bodySizes, wakeSizes, L7, L8)
     L10 = sparse(rows, cols, vals, wakeTotal, bodyTotal) 
 
     return L9, L10
-end
-
-"""
-$(SIGNATURES)
-
-Calculate the quasi-steady portion of the aerodynamic forces.
-"""
-function SteadyForce(Γw, b, vb, ρ, model)
-    Γb = model.L3*Γw - model.L4*b
-    Γwake = GetFullWakeVector(Γw, b, model)
-    Γs = SegmentCirculation(Γb, model.segmentProps)
-    Fa = AerodynamicForce(Γb, Γwake, Γs, vb, model, ρ=ρ)
-    return Fa, Γb
-end
-
-"""
-$(SIGNATURES)
-
-Solve for the steady-state wake circulation given normal wash `b`.
-"""
-function SolveSteadyCirculation(b, model::UnsteadyAeroModel2D)
-    Γw = - (model.K8 \ (model.K9*b))
-    return Γw
-end
-
-"""
-$(SIGNATURES)
-
-Calculate the full wake circulation vector (including the Kutta edge) from transport wake states.
-"""
-function GetFullWakeVector(Γw::Vector, b::Vector, model::UnsteadyAeroModel2D)
-    Γwake = model.L9 * Γw + model.L10 * b
-    return Γwake
-end
-
-"""
-$(SIGNATURES)
-
-Solve for the steady-state aerodynamic solution of an unsteady model.
-"""
-function AeroSolve(vb, aeroModel::UnsteadyAeroModel2D, ρ = 1.225)
-    b = NormalWash(vb, aeroModel)
-    Γw = SolveSteadyCirculation(b, aeroModel)
-    Fa, _ = SteadyForce(Γw, b, vb, ρ, aeroModel)
-    sol = SteadySolution(Fa, vb, aeroModel, ρ)
-    return sol
-end
-
-"""
-$(SIGNATURES)
-
-Calculate the time derivative of the wake circulation states (dΓw/dt).
-"""
-function SolveCirculation(Γw::Vector, vb, model::UnsteadyAeroModel2D)
-    b = NormalWash(vb, model)
-    dΓw = SolveCirculation(Γw, b, model)
-    return dΓw
-end
-
-function SolveCirculation(Γw::Vector, b::Vector, model::UnsteadyAeroModel2D)
-    dΓw = model.K8*Γw + model.K9*b
-    return dΓw
-end
-
-"""
-$(SIGNATURES)
-
-Calculate the unsteady contribution to aerodynamic forces based on circulation time derivatives.
-"""
-function UnsteadyPanelForces(Γw, b, ρ, model, db)
-    dΓb = model.L5*Γw .+ model.L6*b .- model.L4*db
-    Fu = ρ .* dΓb .* model.panelProperties.area .* model.panelProperties.normal
-    return Fu, dΓb
-end
-
-function UnsteadyPanelForces(Γw, b, ρ, model)
-    dΓb = model.L5*Γw .+ model.L6*b
-    Fu = ρ .* dΓb .* model.panelProperties.area .* model.panelProperties.normal
-    return Fu, dΓb
-end
-
-"""
-$(SIGNATURES)
-
-Return total aerodynamic forces (Steady + Unsteady) for given states and kinematics.
-"""
-function SolveForces(Γw, vb, dvb, model::UnsteadyAeroModel2D, ρ = 1.225)
-    b = NormalWash(vb, model)
-    db = NormalWash(dvb, model)
-    Fu, _ = UnsteadyPanelForces(Γw, b, ρ, model, db)
-    Fa, _ = SteadyForce(Γw, b, vb, ρ, model)
-    return Fa, Fu
 end
 
 """

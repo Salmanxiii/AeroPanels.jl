@@ -30,7 +30,7 @@ end
 function CSVelocity!(velocities::Vector, dδ, vertices::Vector, cs::ControlSurface)
     @batch for i in cs.index
         r = vertices[i] - cs.origin
-        velocities[i] = dδ * cross(cs.hinge, r)
+        velocities[i] = -dδ * cross(cs.hinge, r)
     end
 end
 

@@ -27,17 +27,17 @@ model = AeroModel2D([surf, surf2], props);
 # # 4. Solve
 # We define a flight condition (Speed and Angle of Attack) and solve for the aerodynamic forces.
 V, α = 10.0, 5.0 # Speed [m/s], AoA [deg]
-sol = AeroSolve(V, α, model)
+vb = AeroPanels.BodyVelocity(V, deg2rad(α))
+cache = AeroSolve(vb, model)
 
 # # 5. Results
-# The solver returns a `SteadySolution` object containing the force coefficients.
-println("Lift Coefficient (CL): ", round(sol.CL, digits=4))
-println("Drag Coefficient (CD): ", round(sol.CD, digits=4))
+# The solver returns a cache containing forces and circulations.
+# We extract stability coefficients (CL, CD, CY).
+CFstab, CMstab = GetStabilityCoefficients(cache, vb, 1.225, model)
+println("Lift Coefficient (CL): ", round(-CFstab[3], digits=4))
+println("Drag Coefficient (CD): ", round(-CFstab[1], digits=4))
 
 # # Visual Representation
 PlotModel(model)
 # Plot Forces
-vb = AeroPanels.BodyVelocity(V, deg2rad(α))
-b = AeroPanels.NormalWash(vb, model)
-Γp, Γw, Γs = AeroPanels.Circulation(b, model)
-PlotModel(model, plotWake=false, Γp=Γp, Γw=Γw, plotForces=true, sol=sol, forceScale=0.05)
+PlotModel(model, plotWake=false, Γp=cache.Γp, Γw=cache.Γw, plotForces=true, Fa=cache.Fa, forceScale=0.05)

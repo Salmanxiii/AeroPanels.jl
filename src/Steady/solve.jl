@@ -1,3 +1,8 @@
+"""
+$(SIGNATURES)
+
+Create and return a tuple of cache arrays for the steady solver.
+"""
 function CreateCacheArrays(model, T)
     nVert = model.sizes.totalVertices
     nPan = model.sizes.totalPanels
@@ -19,6 +24,11 @@ function CreateCacheArrays(model, T)
     return (rVertex=rVertex, vVertex=vVertex, b=b, Γp=Γp, Γw=Γw, Γs=Γs, Fa=Fa, Ra=Ra)
 end
 
+"""
+$(SIGNATURES)
+
+Calculate the deformed mesh coordinates and the kinematic velocity at the mesh vertices.
+"""
 function AddSteadyKinematics!(rVertex, vVertex,
         vb, ωb, δc, dδc, rs, vs, model)
 
@@ -34,11 +44,16 @@ function AddSteadyKinematics!(rVertex, vVertex,
 
     for i in eachindex(rVertex)
         rVertex[i] = rVertex[i] + rs[i]
-        vVertex[i] = vVertex[i] + vb_g + vs[i] + cross(ωb_g, rVertex[i] - CG)
+        vVertex[i] = vVertex[i] - vb_g + vs[i] - cross(ωb_g, rVertex[i] - CG)
     end
     return nothing
 end
 
+"""
+$(SIGNATURES)
+
+Calculate the normal wash on each panel.
+"""
 function CalculateNormalwash!(b, rVertex, vVertex, model)
     # Normalwash calculation: calculate new normals and interpolate velocity at collocation point
     for (s, nc, ns) in model.sizes
@@ -123,6 +138,12 @@ function CalculateAerodynamicForce!(Fa, Γp, Γw, Γs, vVertex, model::AeroModel
     return nothing
 end
 
+"""
+    AeroSolve(vb, model; kwargs...)
+
+Solve the steady aerodynamic problem for a given body velocity `vb`.
+Returns a cache containing all circulations and forces.
+"""
 function AeroSolve(vb::AbstractArray, model::AeroModel;
         ωb=SA[0.0, 0.0, 0.0],
         δc=zeros(eltype(vb), length(model.controlSurfaces)),
@@ -144,6 +165,11 @@ function AeroSolve(vb::AbstractArray{A}, ωb::AbstractArray{B},
     AeroSolve(vb, model; ωb=ωb, δc=δc, dδc=dδc, rs=rs, vs=vs, ρ=ρ)
 end
 
+"""
+$(SIGNATURES)
+
+In-place version of `AeroSolve`.
+"""
 function AeroSolve!(cache, vb, ωb, δc, dδc, rs, vs, model, ρ=1.225)
     AddSteadyKinematics!(cache.rVertex, cache.vVertex, vb, ωb, δc, dδc, rs, vs, model)
     CalculateNormalwash!(cache.b, cache.rVertex, cache.vVertex, model)
@@ -152,11 +178,21 @@ function AeroSolve!(cache, vb, ωb, δc, dδc, rs, vs, model, ρ=1.225)
     return nothing
 end
 
+"""
+$(SIGNATURES)
+
+Return the total force and moment at the reference point (CG).
+"""
 function GetTotalForces(cache, model)
     CG = model.modelProperties.CG
     return IntegrateLoad(cache.Fa, cache.Ra, CG)
 end
 
+"""
+$(SIGNATURES)
+
+Return the stability axis force and moment coefficients.
+"""
 function GetStabilityCoefficients(cache, vb, ρ, model)
     mProps = model.modelProperties
     F, M = GetTotalForces(cache, model)
@@ -167,6 +203,11 @@ function GetStabilityCoefficients(cache, vb, ρ, model)
     return CFstab, CMstab
 end
 
+"""
+$(SIGNATURES)
+
+Calculate aerodynamic loads at monitor points.
+"""
 function MonitorPointLoads!(Fmp, cache, model::AeroModel2D)
     for (i, mp) in enumerate(model.monitorPoints)
         indices = mp.segmentIndices

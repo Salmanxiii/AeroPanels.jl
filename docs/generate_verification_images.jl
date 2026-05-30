@@ -17,11 +17,19 @@ function calculate_drag_data(AR; nc=5, ns=60)
     surf2 = Mirror(surf1, 2)
     props = AeroModelProperties(c=chord, b=2*span, S=2*span*chord)
     model = AeroModel2D([surf1, surf2], props)
-    f(α) = -AeroSolve(50.0, α, model).coefficientStability[3]
+    V = 50.0
+    function f(alpha)
+        vb = BodyVelocity(V, deg2rad(alpha))
+        cache = AeroSolve(vb, model)
+        cf, _ = GetStabilityCoefficients(cache, vb, 1.225, model)
+        return -cf[3]
+    end
     cla = ForwardDiff.derivative(f, 0.0) * 57.3
-    sol = AeroSolve(50.0, 2.0, model)
-    cl = -sol.coefficientStability[3]
-    cd = -sol.coefficientStability[1]
+    vb2 = BodyVelocity(V, deg2rad(2.0))
+    cache2 = AeroSolve(vb2, model)
+    cf2, _ = GetStabilityCoefficients(cache2, vb2, 1.225, model)
+    cl = -cf2[3]
+    cd = -cf2[1]
     k = cd / cl^2
     return cla, k
 end
@@ -57,7 +65,13 @@ function calculate_sweep_cla(AR, sweep_deg; nc=5, ns=40)
     surf2 = Mirror(surf1, 2)
     props = AeroModelProperties(c=chord, b=2*span, S=2*span*chord)
     model = AeroModel2D([surf1, surf2], props)
-    f(α) = -AeroSolve(50.0, α, model).coefficientStability[3]
+    V = 50.0
+    function f(alpha)
+        vb = BodyVelocity(V, deg2rad(alpha))
+        cache = AeroSolve(vb, model)
+        cf, _ = GetStabilityCoefficients(cache, vb, 1.225, model)
+        return -cf[3]
+    end
     return ForwardDiff.derivative(f, 0.0) * 57.3
 end
 

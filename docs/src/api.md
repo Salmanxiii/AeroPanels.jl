@@ -17,15 +17,19 @@ PanelProperties
 
 ```@docs
 AeroSolve
-SolveForces
-SolveCirculation
-NormalWash
-NormalWash!
-Circulation
-Circulation!
-AerodynamicForce
-AerodynamicForce!
-SteadySolution
+AeroSolve!
+CreateCacheArrays
+GetStabilityCoefficients
+GetTotalForces
+AddSteadyKinematics!
+AddUnsteadyKinematics!
+CalculateNormalwash!
+CalculateDNormalwash!
+SolveCirculation!
+SolveUnsteadyCirculation!
+CalculateAerodynamicForce!
+CalculateUnsteadyAerodynamicForce!
+MonitorPointLoads!
 ```
 
 ## Secondary Functions
@@ -38,10 +42,6 @@ SegmentCirculation
 SegmentCirculation!
 ProcessSegments
 NumberOfStates
-GetFullWakeVector
-UnsteadyPanelForces
-SteadyForce
-SolveSteadyCirculation
 UnsteadyWakeInfluence
 ```
 

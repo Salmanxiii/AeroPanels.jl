@@ -30,7 +30,7 @@ function AeroPanels.PlotModel(model::AeroModel;
     Γp=nothing, 
     Γw=nothing, 
     plotForces=false, 
-    sol=nothing, 
+    Fa=nothing, 
     forceScale=1.0)
     
     fig = Figure()
@@ -55,9 +55,9 @@ function AeroPanels.PlotModel(model::AeroModel;
         end
     end
 
-    if plotForces && !isnothing(sol)
+    if plotForces && !isnothing(Fa)
         locations = AeroPanels.AerodynamicLoadLocation(model)
-        forces = sol.forceVecSeg
+        forces = Fa
         dirs = [Point3f(f[1], f[2], f[3]) for f in forces] .* forceScale
         pts = [Point3f(p[1], p[2], p[3]) for p in locations]
         arrows3d!(ax, pts, dirs, color=:red)

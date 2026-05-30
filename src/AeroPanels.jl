@@ -22,6 +22,7 @@ include("MonitorPoints.jl")
 include("Steady/SteadyAeroModel2D.jl")
 include("Steady/solve.jl")
 include("Unsteady/UnsteadyAeroModel2D.jl")
+include("Unsteady/solve.jl")
 include("Misc.jl")
 
 
@@ -32,14 +33,14 @@ export SegmentCirculation, SegmentInducedVelocity, SegmentForce, NormalWash
 export AeroSurface, AeroSurface2D, Mirror, NoSegments
 export WakeModel, CreateAeroMesh, RingMesh, FlatWakeMesh
 export VORTXL, VORING, Influence, SteadyWakeInfluence
-export AeroModel, AeroModel2D, SteadySolution, AICSolve, AerodynamicForces, AeroSolve
+export AeroModel, AeroModel2D, AeroSolve
 export BodyAccelerations, AerodynamicAnglesDerivatives, BodyVelocity
 export UnsteadyAeroModel2D, UnsteadyWakeInfluence, FullWakeFromTransportWakeOperator
 export GetFullWakeVector, SolveSteadyCirculation, SolveCirculation, UnsteadyPanelForces
 export SolveForces, NumberOfStates
 export PlotModel
 
-export GetTotalForces, GetStabilityCoefficients, AeroSolve!
+export GetTotalForces, GetStabilityCoefficients, AeroSolve!, CreateCacheArrays, MonitorPointLoads!
 
 function PlotModel end
 

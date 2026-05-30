@@ -18,11 +18,8 @@ model = AeroModel2D([surf, surf2], props)
 
 V, α = 10.0, 5.0
 vb = AeroPanels.BodyVelocity(V, deg2rad(α))
-b = AeroPanels.NormalWash(vb, model)
-Γp, Γw, Γs = AeroPanels.Circulation(b, model)
-Fa = AeroPanels.AerodynamicForce(Γp, Γw, Γs, vb, model, ρ=1.225)
-sol = AeroPanels.SteadySolution(Fa, vb, model, 1.225)
+cache = AeroSolve(vb, model)
 
 # Circulation
-fig3 = PlotModel(model, plotWake=true, Γp=Γp, Γw=Γw)
+fig3 = PlotModel(model, plotWake=true, Γp=cache.Γp, Γw=cache.Γw)
 save(joinpath(@__DIR__, "src", "assets", "circulation.png"), fig3)
