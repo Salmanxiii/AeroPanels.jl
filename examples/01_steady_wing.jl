@@ -40,4 +40,6 @@ println("Drag Coefficient (CD): ", round(-CFstab[1], digits=4))
 # # Visual Representation
 PlotModel(model)
 # Plot Forces
-PlotModel(model, plotWake=false, Γp=cache.Γp, Γw=cache.Γw, plotForces=true, Fa=cache.Fa, forceScale=0.05)
+f = PlotModel(model, plotWake=false, Γp=cache.Γp, Γw=cache.Γw, plotForces=true, Fa=cache.Fa)
+f
+#display(GLMakie.Screen(), f)

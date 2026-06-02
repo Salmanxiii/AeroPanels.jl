@@ -4,6 +4,7 @@ using GLMakie
 using AeroPanels
 using GeometryBasics
 using StaticArrays
+using LinearAlgebra
 
 function disconnected_mesh(mesh, face_colors)
     fs = faces(mesh)
@@ -30,11 +31,10 @@ function AeroPanels.PlotModel(model::AeroModel;
     Γp=nothing, 
     Γw=nothing, 
     plotForces=false, 
-    Fa=nothing, 
-    forceScale=1.0)
+    Fa=nothing)
     
     fig = Figure()
-    ax = Axis3(fig[1, 1], aspect = :equal)
+    ax = LScene(fig[1, 1], show_axis = false)
 
     # Plot panel circulation if provided, else wireframe
     if !isnothing(Γp)
@@ -56,6 +56,8 @@ function AeroPanels.PlotModel(model::AeroModel;
     end
 
     if plotForces && !isnothing(Fa)
+        c = model.modelProperties.c
+        forceScale = c / maximum(norm.(Fa)) / 2
         locations = AeroPanels.AerodynamicLoadLocation(model)
         forces = Fa
         dirs = [Point3f(f[1], f[2], f[3]) for f in forces] .* forceScale
