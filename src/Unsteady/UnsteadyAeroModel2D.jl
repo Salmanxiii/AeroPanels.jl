@@ -11,11 +11,13 @@ $(SIGNATURES)
 Calculate the unsteady aerodynamic influence coefficients and state-space matrices.
 Based on Binder (2017) and AIAA (2018) publications.
 """
-function UnsteadyWakeInfluence(rCollocation::Vector{Point3{T}}, normal, ringMesh, wakeMesh, bodySizes, wakeSizes, symmXZ, Δt) where T
+function UnsteadyWakeInfluence(rCollocation::Vector{Point3{T}}, normal, ringMesh, wakeMesh, bodySizes, wakeSizes, symmXZ, Δxw) where T
     AICwake = Influence(rCollocation, normal, wakeMesh, symmXZ);
     wakeLEIndices = LEPanelIndex(wakeSizes)
     wakeNonKuttaIndices = NonKuttaPanelIndex(wakeSizes)
 
+    # Nonpermeability Condition
+    # K1*Γb + K2*Γw0 + K3*Γw1 - b = 0
     K1 = Influence(rCollocation, normal, ringMesh, symmXZ);
     K2 = AICwake[:, wakeLEIndices]
     # K3 = @view AICwake[:, 1:end .∉ [wakeLEIndices]]
@@ -23,23 +25,28 @@ function UnsteadyWakeInfluence(rCollocation::Vector{Point3{T}}, normal, ringMesh
 
     bodyTEIndices = TEPanelIndex(bodySizes)
     totalKuttaPanels = length(wakeLEIndices)
-    # Kutta Convection
+    
+    # Kutta Condition
+    # K4*Γb + K5*Γw0 = 0
     K4 = SelectionOperator(bodyTEIndices, bodySizes.totalPanels,
         1:totalKuttaPanels, totalKuttaPanels)
     K5 = -I
 
     wSizes2 = Sizes([(nc-1, ns) for (s, nc, ns) in wakeSizes])
     totalWakePanels = wSizes2.totalPanels
+
     # Transport of Wake
+    # dΓw1 = K6*Γw1 + K7*Γw0
     fromPanels = [PanelIndex(s,i,j, wSizes2) for (s, nc, ns) in wSizes2 for i in 1:nc-1 for j in 1:ns]
     toPanels = [PanelIndex(s,i,j, wSizes2) for (s, nc, ns) in wSizes2 for i in 2:nc for j in 1:ns]
     K6 = SelectionOperator(fromPanels, totalWakePanels,
     toPanels, totalWakePanels) - I
+    K6 *= 1/Δxw 
     # Adds Kutta Panel Circulation to its trailing panels in wake
     K7 = SelectionOperator(1:totalKuttaPanels, totalKuttaPanels,
-        LEPanelIndex(wSizes2), totalWakePanels)
-    K6 *= 1/Δt # K6 *= V / Δxw
-    K7 *= 1/Δt
+        LEPanelIndex(wSizes2), totalWakePanels)  
+    K7 *= 1/Δxw
+
 #  Circulation at wake LE panels is given in paper as :
 #           Γw0 = L7*Γw - L8*b      (1)
 #  But from kutta condition it is also equal to body TE circulation i.e. Kutta condition and circulation on body is given as:
@@ -51,28 +58,28 @@ function UnsteadyWakeInfluence(rCollocation::Vector{Point3{T}}, normal, ringMesh
 #  Thus L7 and L8 can be computed from L3 and L4, which is computationally more efficient.
 #  Paper approach is left here for reference.
 #  L8 = inv(K5 - K4K1⁻¹*K2) * K4K1⁻¹, L7 = L8 * K3
-
-    L4 = -inv(K1-K2*K5*K4)
-    L8 = L4[bodyTEIndices, :]
+    
+    # Γb = L3*Γw1 - L4*b
+    L4 = inv(K2*K5*K4 - K1)
+    L3 = L4 * K3
+    
+    # Γw0 = Γb[TEindices] = L7*Γw1 - L8*b
+    L7 = L3[bodyTEIndices, :] #L7 = K4 * L3
+    L8 = L4[bodyTEIndices, :] #L8 = K4 * L4
+    
+    # Γw1 = K8*Γw1 + K9*b
     # K9 should be sparse because K7 is highly sparse
-    #K4K1⁻¹ = K4 / K1
-    #K_temp1 = inv(K5 - K4K1⁻¹*K2)
-    #L8 = K_temp1 * K4K1⁻¹
-    K9 = K7 * L8
-    K8 = K6 + K9*K3
+    K9 = sparse(K7 * L8)
+    K8 = sparse(K6 + K9*K3)
     K9 *= -1
 
-    #L4 = -inv(K1-K2*K5*K4)
-    L3 = L4*K3
+    # dΓb = L5*Γw1 + L6*b - L4*db
     L5 = L3*K8
     L6 = L3*K9 # typo in paper 
-    #L7 = L8 * K3
-    # L8 calculated above before K9
 
-    L7 = L3[bodyTEIndices, :]
     L9, L10 = FullWakeFromTransportWakeOperator(bodySizes, wakeSizes, L7, L8)
 
-    return (sparse(K8), sparse(K9)), (L3, L4, L5, L6, L7, L8, L9, L10)
+    return (K8, K9), (L3, L4, L5, L6, L7, L8, L9, L10)
 end
 
 """
@@ -115,10 +122,9 @@ function UnsteadyAeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroMode
     wakeMesh, wakeSizes = FlatWakeMesh(ringMesh, sizes, props; nWake=nWake, wakeLength=wakeLength)
     panelProperties = PanelProperties(sizes.totalPanels, mesh, FlowAxis(props))
     Δxw = wakeLength*props.c / nWake
-    Δt = Δxw / V
 
     (K8, K9), (L3, L4, L5, L6, L7, L8, L9, L10) = UnsteadyWakeInfluence(panelProperties.rCollocation,
-    panelProperties.normal, ringMesh, wakeMesh, sizes, wakeSizes, props.symmXZ, Δt);
+    panelProperties.normal, ringMesh, wakeMesh, sizes, wakeSizes, props.symmXZ, Δxw);
     segmentProps = ProcessSegments(ringMesh, sizes, wakeMesh, wakeSizes, props.symmXZ)
     return UnsteadyAeroModel2D(mesh, ringMesh, wakeMesh, sizes, wakeSizes, panelProperties,
     props, segmentProps, K8, K9, L3, L4, L5, L6, L7, L8, L9, L10, controlSurfaces, monitorPoints)
