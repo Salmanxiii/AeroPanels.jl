@@ -143,7 +143,7 @@ $(SIGNATURES)
 In-place version of the unsteady `AeroSolve`.
 """
 function AeroSolve!(cache, vb, ab, ωb, dωb, δc, dδc, ddδc, rs, vs, as, Γw1, model::UnsteadyAeroModel2D, ρ=1.225)
-    @time AddSteadyKinematics!(cache.rVertex, cache.vVertex, vb, ωb, δc, dδc, rs, vs, model)
+    AddSteadyKinematics!(cache.rVertex, cache.vVertex, vb, ωb, δc, dδc, rs, vs, model)
     AddUnsteadyKinematics!(cache.aVertex, cache.rVertex, ab, dωb, ddδc, as, model)
     
     CalculateNormalwash!(cache.b, cache.rVertex, cache.vVertex, model)
