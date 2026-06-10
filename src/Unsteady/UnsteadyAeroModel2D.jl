@@ -77,9 +77,11 @@ function UnsteadyWakeInfluence(rCollocation::Vector{Point3{T}}, normal, ringMesh
     L5 = L3*K8
     L6 = L3*K9 # typo in paper 
 
-    L9, L10 = FullWakeFromTransportWakeOperator(bodySizes, wakeSizes, L7, L8)
+    Γw0Indices = LEPanelIndex(wakeSizes)
+    Γw1Indices = NonKuttaPanelIndex(wakeSizes)
+    ΓbTEIndices = bodyTEIndices
 
-    return (K8, K9), (L3, L4, L5, L6, L7, L8, L9, L10)
+    return (K8, K9), (L3, L4, L5, L6, Γw0Indices, Γw1Indices, ΓbTEIndices)
 end
 
 """
@@ -104,10 +106,9 @@ struct UnsteadyAeroModel2D{T} <: AeroModel
     L4::Matrix{T}
     L5::Matrix{T}
     L6::Matrix{T}
-    L7::Matrix{T}
-    L8::Matrix{T}
-    L9::SparseMatrixCSC{T, Int}
-    L10::SparseMatrixCSC{T, Int}
+    Γw0Indices::Vector{Int}
+    Γw1Indices::Vector{Int}
+    ΓbTEIndices::Vector{Int}
     controlSurfaces::Vector{ControlSurface{T}}
     monitorPoints::Vector{MonitorPoint{T}}
 end
@@ -123,64 +124,29 @@ function UnsteadyAeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroMode
     panelProperties = PanelProperties(sizes.totalPanels, mesh, FlowAxis(props))
     Δxw = wakeLength*props.c / nWake
 
-    (K8, K9), (L3, L4, L5, L6, L7, L8, L9, L10) = UnsteadyWakeInfluence(panelProperties.rCollocation,
+    (K8, K9), (L3, L4, L5, L6, Γw0Indices, Γw1Indices, ΓbTEIndices) = UnsteadyWakeInfluence(panelProperties.rCollocation,
     panelProperties.normal, ringMesh, wakeMesh, sizes, wakeSizes, props.symmXZ, Δxw);
     segmentProps = ProcessSegments(ringMesh, sizes, wakeMesh, wakeSizes, props.symmXZ)
     return UnsteadyAeroModel2D(mesh, ringMesh, wakeMesh, sizes, wakeSizes, panelProperties,
-    props, segmentProps, K8, K9, L3, L4, L5, L6, L7, L8, L9, L10, controlSurfaces, monitorPoints)
+    props, segmentProps, K8, K9, L3, L4, L5, L6, Γw0Indices, Γw1Indices, ΓbTEIndices, controlSurfaces, monitorPoints)
 end
 
 """
-    (model::UnsteadyAeroModel2D)(dΓw1, Γw1, b, t=0.0)
+    (model::UnsteadyAeroModel2D)(dΓw1, Γw1, p, t=0.0)
 
 Functor for OrdinaryDiffEq. Solves for the wake transport states derivative.
-Note: normalwash `b` should be passed as the parameter or constant in the solver loop.
+`p` can be `b` (normalwash) or a tuple `(b, V)`.
 """
-function (model::UnsteadyAeroModel2D)(dΓw1, Γw1, b, t=0.0)
+function (model::UnsteadyAeroModel2D)(dΓw1, Γw1, p, t=0.0)
+    if p isa Tuple
+        b, V = p
+    else
+        b, V = p, 1.0
+    end
     mul!(dΓw1, model.K8, Γw1)
     mul!(dΓw1, model.K9, b, 1.0, 1.0)
+    dΓw1 .*= V
     return nothing
-end
-
-function FullWakeFromTransportWakeOperator(bodySizes, wakeSizes, L7, L8)
-    # Γw0(LE) = L7*Γw(transport) - L8*b
-    # Γwake(full wake) = L9 * Γw + L10 * b
-
-    wakeLEIndices = LEPanelIndex(wakeSizes)
-    wakeNonKuttaIndices = NonKuttaPanelIndex(wakeSizes)
-    wakeTotal = wakeSizes.totalPanels
-
-    # Construct sparse operator
-    m1, m2  = length(wakeLEIndices), length(wakeNonKuttaIndices)
-    n = m1*m2 + length(wakeNonKuttaIndices)
-    vals = ones(n)
-    rows, cols = ones(Int, n), ones(Int, n)
-    n=1
-    for i in 1:m1
-        for j in 1:m2
-            rows[n] = wakeLEIndices[i]
-            cols[n] = j
-            n+=1
-        end
-    end
-    m=1
-    for i in 1:length(wakeNonKuttaIndices)
-        rows[n] = wakeNonKuttaIndices[i]
-        cols[n] = m
-        n+=1
-        m+=1
-    end
-    L9 =  sparse(rows, cols, vals, wakeTotal, m2)
-    L9[wakeLEIndices, :] .= L7
-    
-    bodyTotal = bodySizes.totalPanels
-    rows = [wakeLEIndices[j] for i in 1:bodyTotal for j in 1:m1]
-    cols = [i for i in 1:bodyTotal for j in 1:m1]
-    vals = vec(L8)
-    vals *= -1
-    L10 = sparse(rows, cols, vals, wakeTotal, bodyTotal) 
-
-    return L9, L10
 end
 
 """

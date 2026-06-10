@@ -6,6 +6,7 @@ using GeometryBasics
 using SparseArrays
 using Polyester
 using DocStringExtensions
+using OrdinaryDiffEqTsit5: ODEProblem, solve
 
 import Base: show, size, iterate, length, @kwdef
 
@@ -41,6 +42,7 @@ export SolveForces, NumberOfStates
 export PlotModel
 
 export GetTotalForces, GetStabilityCoefficients, AeroSolve!, CreateCacheArrays, MonitorPointLoads!
+export AeroInputs
 
 function PlotModel end
 

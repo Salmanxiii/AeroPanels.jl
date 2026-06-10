@@ -35,6 +35,7 @@ MonitorPointLoads!
 ## Secondary Functions
 
 ```@docs
+AeroInputs
 AeroSurface2D
 Mirror
 SegmentProperties

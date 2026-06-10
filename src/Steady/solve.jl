@@ -208,7 +208,7 @@ $(SIGNATURES)
 
 Calculate aerodynamic loads at monitor points.
 """
-function MonitorPointLoads!(Fmp, cache, model::AeroModel2D)
+function MonitorPointLoads!(Fmp, cache, model::AeroModel)
     for (i, mp) in enumerate(model.monitorPoints)
         indices = mp.segmentIndices
         Fvec = @view cache.Fa[indices]
