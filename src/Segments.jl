@@ -148,7 +148,7 @@ function SegmentCirculation!(Γseg, Γp, sp::SegmentProperties)
     Γseg .= 0
     Γseg[sp.indPosSeg] .= @view Γp[sp.indPosPanel]
     for i in eachindex(sp.indNegSeg, sp.indNegPanel)
-        Γseg[sp.indNegSeg[i]] = -Γp[sp.indNegPanel[i]]
+        Γseg[sp.indNegSeg[i]] = Γseg[sp.indNegSeg[i]] - Γp[sp.indNegPanel[i]]
     end
     return nothing
 end
