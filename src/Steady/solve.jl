@@ -100,7 +100,7 @@ Calculate aerodynamic forces on segments in-place into vector `Fa`.
 function CalculateAerodynamicForce!(Fa, Γp, Γw, Γs, vVertex, model::AeroModel, ρ)
     # Calculate induced velocity at segments and storing it temporarily in Fa
     # Non-allocating version of equation v = AIC3r * Γr + AIC3w * Γw
-    Fa .= model.segmentProps.aic3Ring * Γp
+    mul!(Fa, model.segmentProps.aic3Ring, Γp)
     mul!(Fa, model.segmentProps.aic3Wake, Γw, 1.0, 1.0)
     
     nss = model.segmentProps.nSpanSegments

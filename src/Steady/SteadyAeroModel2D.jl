@@ -8,9 +8,9 @@ A 2D aerodynamic model representing a collection of lifting surfaces and their s
 $(TYPEDFIELDS)
 """
 struct AeroModel2D{T<:Real} <: AeroModel
-    mesh::GeometryBasics.Mesh{3, T}
-    ringMesh::GeometryBasics.Mesh{3, T}
-    wakeMesh::GeometryBasics.Mesh{3, T}
+    mesh::Mesh{3, T, QuadFace{Int64}, (:position,), Tuple{Vector{Point{3, T}}}, Vector{QuadFace{Int64}}}
+    ringMesh::Mesh{3, T, QuadFace{Int64}, (:position,), Tuple{Vector{Point{3, T}}}, Vector{QuadFace{Int64}}}
+    wakeMesh::Mesh{3, T, QuadFace{Int64}, (:position,), Tuple{Vector{Point{3, T}}}, Vector{QuadFace{Int64}}}
     sizes::Sizes
     wakeSizes::Sizes
     panelProperties::PanelProperties{T}

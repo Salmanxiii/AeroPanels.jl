@@ -92,9 +92,9 @@ An unsteady 2D aerodynamic model based on the Continuous-Time Unsteady Vortex La
 $(TYPEDFIELDS)
 """
 struct UnsteadyAeroModel2D{T} <: AeroModel
-    mesh::GeometryBasics.Mesh{3, T}
-    ringMesh::GeometryBasics.Mesh{3, T}
-    wakeMesh::GeometryBasics.Mesh{3, T}
+    mesh::Mesh{3, T, QuadFace{Int64}, (:position,), Tuple{Vector{Point{3, T}}}, Vector{QuadFace{Int64}}}
+    ringMesh::Mesh{3, T, QuadFace{Int64}, (:position,), Tuple{Vector{Point{3, T}}}, Vector{QuadFace{Int64}}}
+    wakeMesh::Mesh{3, T, QuadFace{Int64}, (:position,), Tuple{Vector{Point{3, T}}}, Vector{QuadFace{Int64}}}
     sizes::Sizes
     wakeSizes::Sizes
     panelProperties::PanelProperties{T}
@@ -127,6 +127,7 @@ function UnsteadyAeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroMode
     (K8, K9), (L3, L4, L5, L6, Γw0Indices, Γw1Indices, ΓbTEIndices) = UnsteadyWakeInfluence(panelProperties.rCollocation,
     panelProperties.normal, ringMesh, wakeMesh, sizes, wakeSizes, props.symmXZ, Δxw);
     segmentProps = ProcessSegments(ringMesh, sizes, wakeMesh, wakeSizes, props.symmXZ)
+    
     return UnsteadyAeroModel2D(mesh, ringMesh, wakeMesh, sizes, wakeSizes, panelProperties,
     props, segmentProps, K8, K9, L3, L4, L5, L6, Γw0Indices, Γw1Indices, ΓbTEIndices, controlSurfaces, monitorPoints)
 end
