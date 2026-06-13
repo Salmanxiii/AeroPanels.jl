@@ -1,14 +1,16 @@
 struct ControlSurface{T}
-name:: String
-origin::SVector{3, T}
-hinge::SVector{3, T}
-index::Vector{Int}
+    name::String
+    origin::SVector{3, T}
+    hinge::SVector{3, T}
+    index::Vector{Int}         # Vertex indices (for physical mesh displacement)
+    panelIndices::Vector{Int}  # Panel indices (for aerodynamic boundary conditions)
 end
 
 function CreateControlSurface(name, origin, hingeAxis, s::Int, nc::Tuple{Int,Int}, ns::Tuple{Int,Int}, surfaces)
     sizes = Sizes([size(surface) for surface in surfaces])
     indices = [VertexIndex(s, i, j, sizes) for i in nc[1]:nc[2] for j in ns[1]:ns[2]]
-    return ControlSurface(name, origin, normalize(hingeAxis)  , indices)
+    pIndices = [PanelIndex(s, i, j, sizes) for i in nc[1]:(nc[2]-1) for j in ns[1]:(ns[2]-1)]
+    return ControlSurface(name, origin, normalize(hingeAxis), indices, pIndices)
 end
 
 function CSDisplacement!(vertices::Vector, δ, cs::ControlSurface)
