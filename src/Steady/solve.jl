@@ -159,6 +159,18 @@ function AeroSolve(vb::AbstractArray, model::AeroModel;
 end
 
 function AeroSolve(vb::AbstractArray{A}, ωb::AbstractArray{B},
+        δc::AbstractArray{C}, model::AeroModel, ρ=1.225) where {A, B, C}
+    T = promote_type(A, B, C)
+    nVert = model.sizes.totalVertices
+    rs = fill(zero(Point3{T}), nVert)
+    vs = fill(zero(Point3{T}), nVert)
+    dδc = zeros(T, length(model.controlSurfaces))
+    cache = CreateCacheArrays(model, T)
+    AeroSolve!(cache, vb, ωb, δc, dδc, rs, vs, model, ρ)
+    return cache
+end
+
+function AeroSolve(vb::AbstractArray{A}, ωb::AbstractArray{B},
     δc::AbstractArray{C}, dδc::AbstractArray{D},
     rs::AbstractArray, vs::AbstractArray, model, ρ=1.225) where {A, B, C, D}
 
@@ -217,4 +229,34 @@ function MonitorPointLoads!(Fmp, cache, model::AeroModel)
         Fmp[6(i-1)+1:6(i-1)+6] .= [mp.orientation * F; mp.orientation * M]
     end
     return nothing
+end
+
+
+function GetStabilityDerivatives(model::AeroModel2D)
+    mProps = model.modelProperties
+    b, c = mProps.b, mProps.c
+    
+    # Non-dimensional coefficients isolate dynamic pressure
+    V, ρ = 1.0, 1.0 
+    
+    function eval_coeffs(x::AbstractVector{T}) where T
+        α, β, p_n, q_n, r_n = x[1], x[2], x[3], x[4], x[5]
+        δc = x[6:end]
+        
+        # Proper dimensional scaling: p,r with span; q with chord
+        ωb = SVector{3, T}(p_n * 2V / b, q_n * 2V / c, r_n * 2V / b)
+        vb = BodyVelocity(V, α, β)
+        
+        # The convenience function cleanly handles the Dual cache generation
+        cache = AeroSolve(vb, ωb, δc, model, ρ)
+        
+        CFstab, CMstab = GetStabilityCoefficients(cache, vb, ρ, model)
+        
+        return SVector{6, T}(CFstab[1], CFstab[2], CFstab[3], CMstab[1], CMstab[2], CMstab[3])
+    end
+    
+    x0 = zeros(Float64, 5 + length(model.controlSurfaces))
+    cfg = ForwardDiff.JacobianConfig(eval_coeffs, x0, ForwardDiff.Chunk{2}())
+    dC_dx = ForwardDiff.jacobian(eval_coeffs, x0, cfg)
+    return dC_dx
 end

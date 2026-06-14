@@ -7,6 +7,7 @@ using SparseArrays
 using Polyester
 using DocStringExtensions
 using OrdinaryDiffEqTsit5: ODEProblem, solve
+using ForwardDiff
 
 import Base: show, size, iterate, length, @kwdef
 
@@ -39,9 +40,9 @@ export BodyAccelerations, AerodynamicAnglesDerivatives, BodyVelocity
 export UnsteadyAeroModel2D, UnsteadyWakeInfluence, FullWakeFromTransportWakeOperator
 export GetFullWakeVector, SolveSteadyCirculation, SolveCirculation, UnsteadyPanelForces
 export SolveForces, NumberOfStates
-export PlotModel
+export PlotModel, GetStabilityCoefficients
 
-export GetTotalForces, GetStabilityCoefficients, AeroSolve!, CreateCacheArrays, MonitorPointLoads!
+export GetTotalForces, GetStabilityDerivatives, AeroSolve!, CreateCacheArrays, MonitorPointLoads!
 export AeroInputs
 
 function PlotModel end
