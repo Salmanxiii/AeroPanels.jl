@@ -1,6 +1,6 @@
 module AeroPanelsMakieExt
 
-using GLMakie
+using Makie
 using AeroPanels
 using GeometryBasics
 using StaticArrays
@@ -68,19 +68,46 @@ function add_cad_triad!(fig, main_ax)
     end
 end
 
+function GetCameraView(model::AeroModel; distance_factor=0.1)
+    C_gb = model.modelProperties.bodyFixedCS'
+    
+    body_cam_dir = normalize(Point3f(1.0, -1.0, -1.0))
+    geom_cam_dir = C_gb * body_cam_dir
+    
+    body_up = Point3f(0.0, 0.0, -1.0)
+    geom_up = C_gb * body_up
+    
+    CG = model.modelProperties.CG
+    lookat_pt = Point3f(CG[1], CG[2], CG[3])
+    
+    b = model.modelProperties.b
+    
+    # The artificial max(..., 1.0) floor has been removed.
+    # The camera will now strictly obey your distance_factor.
+    distance = b * distance_factor
+    
+    eyeposition = lookat_pt + geom_cam_dir * distance
+    
+    return eyeposition, lookat_pt, geom_up
+end
+
+
 function AeroPanels.PlotModel(model::AeroModel; 
     plotWake=false, 
     Γp=nothing, 
     Γw=nothing, 
     plotForces=false, 
     Fa=nothing,
+    showCS=true,
     kwargsLScene = (;),
     kwargsWireFrame = (;))
 
     fig = Figure()
     ax = LScene(fig[1, 1]; kwargsLScene...)
 
-    add_cad_triad!(fig, ax)
+    if showCS
+        add_cad_triad!(fig, ax)
+    end
 
     if !isnothing(Γp)
         flat_mesh_p, v_colors_p = disconnected_mesh(model.mesh, Γp)
@@ -88,12 +115,12 @@ function AeroPanels.PlotModel(model::AeroModel;
     else
         # Extract total panel count to preallocate the color array
         num_panels = length(faces(model.mesh))
-        face_colors = fill((:lightblue, 0.75), num_panels)
+        face_colors = fill((:lightblue, 0.9), num_panels)
         
         # Override colors for control surface panels using the stored indices
         for cs in model.controlSurfaces
             for p_idx in cs.panelIndices
-                face_colors[p_idx] = (:gray, 0.75)
+                face_colors[p_idx] = (:gray, 0.9)
             end
         end
         
@@ -123,6 +150,15 @@ function AeroPanels.PlotModel(model::AeroModel;
         pts = [Point3f(p[1], p[2], p[3]) for p in locations]
         arrows3d!(ax, pts, dirs, color=:red)
     end
+
+    eye, look, up = GetCameraView(model)
+    cam = cameracontrols(ax.scene)
+    
+    cam.eyeposition[] = eye
+    cam.lookat[]      = look
+    cam.upvector[]    = up
+    
+    update_cam!(ax.scene, cam)
 
     return fig
 end

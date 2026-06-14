@@ -1,7 +1,7 @@
 name = "AeroPanels"
 uuid = "1f493142-7360-467d-a726-5f88053bc251"
 authors = ["Salman"]
-version = "0.1.0"
+version = "0.2.1"
 
 [deps]
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
@@ -14,14 +14,14 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [weakdeps]
-GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 
 [extensions]
-AeroPanelsMakieExt = "GLMakie"
+AeroPanelsMakieExt = "Makie"
 
 [compat]
 DocStringExtensions = "0.9.3"
-GLMakie = "0.13.9"
+Makie = "0.24.11"
 LinearAlgebra = "1.10"
 OrdinaryDiffEqTsit5 = "2.0.1"
 SparseArrays = "1.10"
