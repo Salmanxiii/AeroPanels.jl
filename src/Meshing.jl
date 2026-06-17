@@ -1,5 +1,22 @@
 abstract type WakeModel end
 
+@generated function type_stable_mesh(
+    va::NamedTuple{Names, VAT},
+    fs::FVT,
+    views::Vector{UnitRange{UInt32}} = UnitRange{UInt32}[]
+) where {Names, VAT, FVT}
+    
+    FT = eltype(FVT)
+    PointType = eltype(fieldtype(VAT, 1))
+    
+    Dim = PointType.parameters[1]
+    T = PointType.parameters[2]
+    
+    ExactMeshType = GeometryBasics.Mesh{Dim, T, FT, Names, VAT, FVT}
+    
+    return :( $(Expr(:new, ExactMeshType, :va, :fs, :views)) )
+end
+
 ################################## Meshing #########################################
 
 function CreateAeroMesh(surfaces::Vector{AeroSurface2D{T}}) where T
@@ -28,7 +45,9 @@ function CreateAeroMesh(surfaces::Vector{AeroSurface2D{T}}) where T
         end
         offset += (nc+1)*(ns+1)
     end
-    mesh = GeometryBasics.Mesh(vec(vertices), vec(faces))
+    #mesh = GeometryBasics.Mesh((position=vertices,), vec(faces), Vector{UnitRange{Int}}())
+    mesh = type_stable_mesh((position=vertices,), vec(faces), UnitRange{UInt32}[])
+    #mesh = _CreateMesh(vertices, faces)
     return mesh, sizes
 end
 
@@ -53,7 +72,8 @@ function RingMesh!(ringMesh, mesh, sizes)
 end
 
 function RingMesh(mesh, sizes)
-    ringMesh = GeometryBasics.Mesh(similar(coordinates(mesh)), faces(mesh))
+    ringMesh = type_stable_mesh((position=similar(coordinates(mesh)),), faces(mesh), UnitRange{UInt32}[])
+    #ringMesh = GeometryBasics.Mesh(similar(coordinates(mesh)), faces(mesh))
     RingMesh!(ringMesh, mesh, sizes)
     return ringMesh
 end
@@ -100,5 +120,6 @@ function FlatWakeMesh(ringMesh::GeometryBasics.Mesh{3, T}, sizes, props::AeroMod
             end
         end
     end
-    return GeometryBasics.Mesh(wakeVertices, wakeFaces), wakeSizes
+    wakeMesh = type_stable_mesh((position=wakeVertices,), wakeFaces, UnitRange{UInt32}[])
+    return wakeMesh, wakeSizes
 end

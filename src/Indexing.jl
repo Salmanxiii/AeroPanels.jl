@@ -90,9 +90,9 @@ ChordSegmentIndex(s::Int, i::Int, j::Int, sizes::Sizes) = sizes.chordSegmentIndi
 TotalSegments(sizes::Sizes) = sizes.totalSpanSegments, sizes.totalChordSegments
 
 function SelectionOperator(fromIndices::AbstractVector{Int}, fromArraySize::Int, 
-    toIndices::AbstractVector{Int}, toArraySize::Int, T::Type=Float64)
+    toIndices::AbstractVector{Int}, toArraySize::Int)
    n = length(toIndices)
    @assert length(toIndices) == length(fromIndices)
-   op = sparse(toIndices, fromIndices, ones(T, n), toArraySize, fromArraySize) 
+   op = sparse(toIndices, fromIndices, ones(Int, n), toArraySize, fromArraySize) 
    return op
 end

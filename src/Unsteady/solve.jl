@@ -1,8 +1,35 @@
 """
+$(TYPEDEF)
+
+A struct holding the cache arrays for unsteady aerodynamic simulations to minimize allocations.
+
+$(TYPEDFIELDS)
+"""
+struct UnsteadyAeroCache{T}
+    rVertex::Vector{Point3{T}}
+    vVertex::Vector{Point3{T}}
+    aVertex::Vector{Point3{T}}
+    b::Vector{T}
+    db::Vector{T}
+    Γw1::Vector{T}
+    dΓw1::Vector{T}
+    Γb::Vector{T}
+    dΓb::Vector{T}
+    Γw::Vector{T}
+    Γs::Vector{T}
+    Fa::Vector{Point3{T}}
+    Ra::Vector{Point3{T}}
+end
+
+"""
 $(SIGNATURES)
 
-Create and return a tuple of cache arrays for the unsteady solver.
+Create and return a cache of arrays for the unsteady solver.
 """
+function CreateCacheArrays(model::UnsteadyAeroModel2D{T}) where T
+    return CreateCacheArrays(model, T)
+end
+
 function CreateCacheArrays(model::UnsteadyAeroModel2D, T)
     nVert = model.sizes.totalVertices
     nPan = model.sizes.totalPanels
@@ -28,8 +55,8 @@ function CreateCacheArrays(model::UnsteadyAeroModel2D, T)
     Ra[1:nSSeg + nCSeg] .= model.segmentProps.mid
     Ra[nSSeg + nCSeg + 1:end] .= model.panelProperties.rMid
 
-    return (rVertex=rVertex, vVertex=vVertex, aVertex=aVertex, b=b, db=db, 
-            Γw1=Γw1, dΓw1=dΓw1, Γb=Γb, dΓb=dΓb, Γw=Γw, Γs=Γs, Fa=Fa, Ra=Ra)
+    return UnsteadyAeroCache(rVertex, vVertex, aVertex, b, db, 
+            Γw1, dΓw1, Γb, dΓb, Γw, Γs, Fa, Ra)
 end
 
 """
@@ -251,6 +278,25 @@ function AeroInputs(model::UnsteadyAeroModel2D; T=Float64)
         1.225
     )
 end
+
+function AeroInputs(model::UnsteadyAeroModel2D{Float64})
+    nVert = model.sizes.totalVertices
+    nCtrl = length(model.controlSurfaces)
+    return AeroInputs{Float64}(
+        MVector{3, Float64}(0,0,0),
+        MVector{3, Float64}(0,0,0),
+        MVector{3, Float64}(0,0,0),
+        MVector{3, Float64}(0,0,0),
+        zeros(Float64, nCtrl),
+        zeros(Float64, nCtrl),
+        zeros(Float64, nCtrl),
+        fill(zero(Point3{Float64}), nVert),
+        fill(zero(Point3{Float64}), nVert),
+        fill(zero(Point3{Float64}), nVert),
+        1.225
+    )
+end
+
 
 struct UnsteadySimParams{F, I, C}
     input_func!::F
