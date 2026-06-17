@@ -27,6 +27,7 @@ include("Unsteady/UnsteadyAeroModel2D.jl")
 include("Unsteady/solve.jl")
 include("Misc.jl")
 
+function BuildFMU end
 
 # Exports
 export Sizes, IndicesMatrix, SelectionOperator
@@ -43,7 +44,7 @@ export SolveForces, NumberOfStates
 export PlotModel, GetStabilityCoefficients
 
 export GetTotalForces, GetStabilityDerivatives, AeroSolve!, CreateCacheArrays, MonitorPointLoads!
-export AeroInputs
+export AeroInputs, BuildFMU, UnsteadyAeroCache
 
 function PlotModel end
 
