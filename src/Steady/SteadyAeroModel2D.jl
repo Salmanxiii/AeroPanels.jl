@@ -22,8 +22,8 @@ struct AeroModel2D{T<:Real} <: AeroModel
 end
 
 function AeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroModelProperties{T};
-    controlSurfaces=ControlSurface{T}[],
-    monitorPoints=MonitorPoint{T}[]) where T
+    controlSurfaces=CSDefinition[],
+    monitorPoints=MPDefinition[]) where T
     mesh, sizes = CreateAeroMesh(surfaces)
     ringMesh = RingMesh(mesh, sizes)
     wakeMesh, wakeSizes = FlatWakeMesh(ringMesh, sizes, props)
@@ -38,8 +38,11 @@ function AeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroModelPropert
     AIC = lu(AIC)
 
     segmentProps = ProcessSegments(ringMesh, sizes, wakeMesh, wakeSizes, props.symmXZ)
+    controlSurfaces2 = [ControlSurface(cs, sizes, mesh) for cs in controlSurfaces]
+    monitorPoints2 = [MonitorPoint(mp, sizes) for mp in monitorPoints]
+    
     return AeroModel2D(mesh, ringMesh, wakeMesh, sizes, wakeSizes, panelProperties,
-     props, AIC, segmentProps, controlSurfaces, monitorPoints)
+     props, AIC, segmentProps, controlSurfaces2, monitorPoints2)
 end
 
 AerodynamicLoadLocation(model::AeroModel2D) = model.segmentProps.mid

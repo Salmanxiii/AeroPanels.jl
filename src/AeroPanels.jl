@@ -33,14 +33,14 @@ function BuildFMU end
 export Sizes, IndicesMatrix, SelectionOperator
 export AeroModelProperties, FlowAxis, PanelProperties, SegmentProperties, ProcessSegments
 export SegmentCirculation, SegmentInducedVelocity, SegmentForce, NormalWash
-export AeroSurface, AeroSurface2D, Mirror, NoSegments
+export AeroSurface, AeroSurface2D, Mirror, MakeSymmetricY, NoSegments
 export WakeModel, CreateAeroMesh, RingMesh, FlatWakeMesh
 export VORTXL, VORING, Influence, SteadyWakeInfluence
 export AeroModel, AeroModel2D, AeroSolve
 export BodyAccelerations, AerodynamicAnglesDerivatives, BodyVelocity
 export UnsteadyAeroModel2D, UnsteadyWakeInfluence, FullWakeFromTransportWakeOperator
 export GetFullWakeVector, SolveSteadyCirculation, SolveCirculation, UnsteadyPanelForces
-export SolveForces, NumberOfStates
+export SolveForces, NumberOfStates, CSDefinition, ControlSurface, MPDefinition
 export PlotModel, GetStabilityCoefficients
 
 export GetTotalForces, GetStabilityDerivatives, AeroSolve!, CreateCacheArrays, MonitorPointLoads!

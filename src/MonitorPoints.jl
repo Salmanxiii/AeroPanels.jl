@@ -39,3 +39,26 @@ function MonitorPointLoads(cache, model)
     MonitorPointLoads!(Fmp, cache, model)
     return Fmp
 end
+
+struct MPDefinition{T}
+    name::String
+    surface::Int
+    origin::SVector{3, T}
+    nc::Tuple{Int, Int}
+    ns::Tuple{Int, Int} 
+    orientation::SMatrix{3, 3, T, 9}  
+end
+function MPDefinition(name, surface, origin, nc, ns, orientation=SMatrix{3,3}(1.,0,0, 0,1,0, 0, 0,1))
+    MPDefinition(name, surface, origin, nc, ns, orientation)
+end
+
+function MonitorPoint(mp::MPDefinition, sizes)
+    nss = sizes.totalSpanSegments
+    nts = sizes.totalSpanSegments + sizes.totalChordSegments
+    nc,ns = mp.nc, mp.ns
+
+    spanIndices = [SpanSegmentIndex(mp.surface, i, j, sizes) for i in nc[1]:nc[2] for j in ns[1]:(ns[2]-1)]
+    chordIndices = [nss + ChordSegmentIndex(mp.surface, i, j, sizes) for i in nc[1]:(nc[2]-1) for j in ns[1]:ns[2]]
+    panelIndices = [nts + PanelIndex(mp.surface, i, j, sizes) for i in nc[1]:(nc[2]-1) for j in ns[1]:(ns[2]-1)]
+    return MonitorPoint(mp.name, mp.origin, mp.orientation, panelIndices, [spanIndices;chordIndices])
+end

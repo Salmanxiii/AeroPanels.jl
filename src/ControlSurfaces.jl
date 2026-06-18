@@ -49,3 +49,21 @@ function CSAcceleration!(accelerations::Vector, ddδc, model::AeroModel)
         CSVelocity!(accelerations, ddδ, vertices, cs)
     end
 end
+
+struct CSDefinition
+    name::String
+    surface::Int
+    nc::Tuple{Int, Int}
+    ns::Tuple{Int, Int}
+end
+
+function ControlSurface(cs::CSDefinition, sizes::Sizes, mesh)
+    r = coordinates(mesh)
+    i1 = VertexIndex(cs.surface, cs.nc[1], cs.ns[1], sizes)
+    i2 = VertexIndex(cs.surface, cs.nc[1], cs.ns[2], sizes)
+    hingeAxis = r[i2] - r[i1]
+
+    indices = [VertexIndex(cs.surface, i, j, sizes) for i in cs.nc[1]:cs.nc[2] for j in cs.ns[1]:cs.ns[2]]
+    pIndices = [PanelIndex(cs.surface, i, j, sizes) for i in cs.nc[1]:(cs.nc[2]-1) for j in cs.ns[1]:(cs.ns[2]-1)]
+    return ControlSurface(cs.name, SVector(r[i1]), SVector(normalize(hingeAxis)), indices, pIndices)
+end

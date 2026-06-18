@@ -152,3 +152,25 @@ end
 function Base.show(io::IO, ::MIME"text/plain", surf::AeroSurface2D{T}) where {T}
     print(io, "AeroSurface2D{$T}:\n   ", surf)
 end
+
+function MakeSymmetricY(s::AeroSurface2D{T}) where T
+    nc, ns = s.nc, s.ns
+    X2 = zeros(T, nc+1, 2*ns+1)
+    Y2 = zeros(T, nc+1, 2*ns+1)
+    Z2 = zeros(T, nc+1, 2*ns+1)
+    for i in 1:nc+1
+        for j in 1:ns
+            X2[i,j] = s.X[i,ns-j+2]
+            Y2[i,j] = -s.Y[i,ns-j+2]
+            Z2[i,j] = s.Z[i,ns-j+2]
+
+            X2[i,2*ns-j+2] = s.X[i,ns-j+2]
+            Y2[i,2*ns-j+2] = s.Y[i,ns-j+2]
+            Z2[i,2*ns-j+2] = s.Z[i,ns-j+2]
+        end
+    end
+    X2[:,ns+1] = s.X[:,1]
+    Y2[:,ns+1] = s.Y[:,1]
+    Z2[:,ns+1] = s.Z[:,1]
+    return AeroSurface2D(X2, Y2, Z2, nc, 2*ns)
+end

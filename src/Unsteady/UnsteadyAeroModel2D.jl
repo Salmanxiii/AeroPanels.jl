@@ -43,7 +43,7 @@ function UnsteadyWakeInfluence(rCollocation::Vector{Point3{T}}, normal, ringMesh
     toPanels, totalWakePanels) - I
     K6 *= 1/Δxw 
     # Adds Kutta Panel Circulation to its trailing panels in wake
-    K7 = SelectionOperator(1:totalKuttaPanels, totalKuttaPanels,
+    K7 = SelectionOperator(collect(1:totalKuttaPanels), totalKuttaPanels,
         LEPanelIndex(wSizes2), totalWakePanels)  
     K7 *= 1/Δxw
 
@@ -115,8 +115,8 @@ end
 
 function UnsteadyAeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroModelProperties{T}, V::T;
      nWake=80, wakeLength=20.,
-     controlSurfaces=ControlSurface{T}[],
-     monitorPoints=MonitorPoint{T}[]) where T
+     controlSurfaces=CSDefinition[],
+     monitorPoints=MPDefinition[]) where T
 
     mesh, sizes = CreateAeroMesh(surfaces)
     ringMesh = RingMesh(mesh, sizes)
@@ -127,9 +127,11 @@ function UnsteadyAeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroMode
     (K8, K9), (L3, L4, L5, L6, Γw0Indices, Γw1Indices, ΓbTEIndices) = UnsteadyWakeInfluence(panelProperties.rCollocation,
     panelProperties.normal, ringMesh, wakeMesh, sizes, wakeSizes, props.symmXZ, Δxw);
     segmentProps = ProcessSegments(ringMesh, sizes, wakeMesh, wakeSizes, props.symmXZ)
-    
+    controlSurfaces2 = [ControlSurface(cs, sizes, mesh) for cs in controlSurfaces]
+    monitorPoints2 = [MonitorPoint(mp, sizes) for mp in monitorPoints]
+
     return UnsteadyAeroModel2D(mesh, ringMesh, wakeMesh, sizes, wakeSizes, panelProperties,
-    props, segmentProps, K8, K9, L3, L4, L5, L6, Γw0Indices, Γw1Indices, ΓbTEIndices, controlSurfaces, monitorPoints)
+    props, segmentProps, K8, K9, L3, L4, L5, L6, Γw0Indices, Γw1Indices, ΓbTEIndices, controlSurfaces2, monitorPoints)
 end
 
 """
