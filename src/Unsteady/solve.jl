@@ -187,12 +187,21 @@ end
 
 Solve an unsteady time-domain simulation and auto-compute forces/coefficients.
 """
-function AeroSolve(model::UnsteadyAeroModel2D, Γw1_0, tspan, input_func!; solver)
-    T = eltype(Γw1_0)
+function AeroSolve(model::UnsteadyAeroModel2D{T}, tspan, input_func!; solver, steady=false) where T
     inputs = AeroInputs(model, T=T)
     cache = CreateCacheArrays(model, T)
     
     p = UnsteadySimParams(input_func!, inputs, cache)
+
+    if steady
+        p.input_func!(p.inputs, 0.0)
+        AddSteadyKinematics!(p.cache.rVertex, p.cache.vVertex, SVector(p.inputs.vb), SVector(p.inputs.ωb),
+                            p.inputs.δc, p.inputs.dδc, p.inputs.rs, p.inputs.vs, model)
+        CalculateNormalwash!(p.cache.b, p.cache.rVertex, p.cache.vVertex, model)    
+        V = norm(p.inputs.vb)
+        p.cache.Γw1 .= -model.K8 \ (model.K9 * p.cache.b)
+     end
+    Γw1_0 = p.cache.Γw1 
     prob = ODEProblem(model, Γw1_0, tspan, p)
     
     sol = solve(prob, solver)
@@ -207,8 +216,9 @@ function AeroSolve(model::UnsteadyAeroModel2D, Γw1_0, tspan, input_func!; solve
     M_tot = Vector{SVector{3, T}}(undef, n_steps)
     
     n_mp = length(model.monitorPoints)
-    mp_loads = [Vector{SVector{6, T}}(undef, n_steps) for _ in 1:n_mp]
-    Fmp = zeros(T, 6 * max(1, n_mp)) # Preallocate
+    # mp_loads = [Vector{SVector{6, T}}(undef, n_steps) for _ in 1:n_mp]
+    mp_loads = zeros(T, n_steps,  6 * n_mp)
+    Fmp = zeros(T, 6 * n_mp) # Preallocate
     
     # Post-process for all time steps
     for (i, t) in enumerate(sol.t)
@@ -231,9 +241,10 @@ function AeroSolve(model::UnsteadyAeroModel2D, Γw1_0, tspan, input_func!; solve
         
         if n_mp > 0
             MonitorPointLoads!(Fmp, cache, model)
-            for j in 1:n_mp
-                mp_loads[j][i] = SVector{6, T}(Fmp[6*(j-1)+1 : 6*(j-1)+6]...)
-            end
+            mp_loads[i,:] = Fmp
+            # for j in 1:n_mp
+            #     mp_loads[j][i] = SVector{6, T}(Fmp[6*(j-1)+1 : 6*(j-1)+6]...)                
+            # end
         end
     end
     
@@ -322,5 +333,46 @@ function (model::UnsteadyAeroModel2D)(dΓw1, Γw1, p::UnsteadySimParams, t)
     return nothing
 end
 
+function Outputs(cache, model)
+    Fg, Mg = GetTotalForces(cache, model)
+    Fb = GeometryToBodyAxis(Fg, model.modelProperties)
+    Mb = GeometryToBodyAxis(Mg, model.modelProperties)
+    Fmp = zeros(eltype(Fb), 6*length(model.monitorPoints))
+    Fmp = MonitorPointLoads!(Fmp, cache, model)
+    return Fb, Mb, Fmp
+end
 
+# function SolveSteady(p::UnsteadySimParams, model)
+#     t = 0.
+#     cache=p.cache
+#     p.input_func!(p.inputs, t)
+#     # 2. Recompute steady kinematics to get new normalwash
+#     AddSteadyKinematics!(p.cache.rVertex, p.cache.vVertex, SVector(p.inputs.vb), SVector(p.inputs.ωb),
+#                          p.inputs.δc, p.inputs.dδc, p.inputs.rs, p.inputs.vs, model)
+#     CalculateNormalwash!(p.cache.b, p.cache.rVertex, p.cache.vVertex, model)
+#     CalculateDNormalwash!(cache.db, cache.rVertex, cache.vVertex, cache.aVertex, model)
+    
+#     V = norm(vb)
+#     SolveSteadyCirculation!(cache.Γw1, cache.dΓb, cache.Γb, cache.Γw, cache.Γs, cache.b, cache.db, V, model)
+#     CalculateUnsteadyAerodynamicForce!(cache.Fa, cache.dΓb, cache.Γb, cache.Γw, cache.Γs, cache.vVertex, model, ρ)
+# end
 
+# function SolveSteadyCirculation!(Γw1, dΓb, Γb, Γw, Γs, b, db, V, model::UnsteadyAeroModel2D)
+#     Γw1 .= model.K8 \ ((model.K9 * b) / V)
+
+#     # Γb = L3*Γw1 - L4*b
+#     mul!(Γb, model.L3, Γw1)
+#     mul!(Γb, model.L4, b, -1.0, 1.0)
+
+#     # dΓb = V * (L5*Γw1 + L6*b) - L4*db
+#     mul!(dΓb, model.L5, Γw1)
+#     mul!(dΓb, model.L6, b, 1.0, 1.0)
+#     dΓb .*= V
+#     mul!(dΓb, model.L4, db, -1.0, 1.0)
+
+#     Γw[model.Γw1Indices] .= Γw1
+#     Γw[model.Γw0Indices] .= @view Γb[model.ΓbTEIndices]
+
+#     SegmentCirculation!(Γs, Γb, model.segmentProps)
+#     return nothing
+# end

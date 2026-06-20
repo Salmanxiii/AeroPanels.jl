@@ -131,7 +131,7 @@ function UnsteadyAeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroMode
     monitorPoints2 = [MonitorPoint(mp, sizes) for mp in monitorPoints]
 
     return UnsteadyAeroModel2D(mesh, ringMesh, wakeMesh, sizes, wakeSizes, panelProperties,
-    props, segmentProps, K8, K9, L3, L4, L5, L6, Γw0Indices, Γw1Indices, ΓbTEIndices, controlSurfaces2, monitorPoints)
+    props, segmentProps, K8, K9, L3, L4, L5, L6, Γw0Indices, Γw1Indices, ΓbTEIndices, controlSurfaces2, monitorPoints2)
 end
 
 """
