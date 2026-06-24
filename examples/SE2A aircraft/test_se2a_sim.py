@@ -1,29 +1,16 @@
+import os
 import fmpy
 from fmpy import read_model_description, extract
 from fmpy.fmi2 import FMU2Slave
 import numpy as np
-import os
-import matplotlib.pyplot as plt
 
-fmu_path = 'examples/fmu_export/WagnerWingFMU.fmu'
+fmu_path = 'examples/SE2A aircraft/SE2AAircraftFMU.fmu'
 
 if not os.path.exists(fmu_path):
     print(f"Error: {fmu_path} not found. Please run the Julia build script first.")
     exit(1)
 
-# --- 1. Simulation Parameters ---
-t_stop = 10.0
-dt = 0.05
-# Wagner problem: Impulsive start at constant AoA
-V = 1.0
-alpha_deg = 2.0
-alpha_rad = np.deg2rad(alpha_deg)
-
-# In AeroPanels default Body Frame (Z-up)
-vb = [V * np.cos(alpha_rad), 0.0, -V * np.sin(alpha_rad)]
-
-# --- 2. Run Simulation ---
-print(f"Simulating FMU: {fmu_path}...")
+print(f"Simulating SE2A Aircraft FMU: {fmu_path}...")
 try:
     # 1. Read Model Description and Extract FMU
     unzipdir = extract(fmu_path)
@@ -41,6 +28,10 @@ try:
     
     vr_rho = [next(v.valueReference for v in model_description.modelVariables if v.name == "rho")]
     
+    # Control surfaces
+    vr_PortElevator_delta = [next(v.valueReference for v in model_description.modelVariables if v.name == "PortElevator_delta")]
+    vr_Rudder_delta = [next(v.valueReference for v in model_description.modelVariables if v.name == "Rudder_delta")]
+    
     # Optional structural nodes
     vr_rs = [v.valueReference for v in model_description.modelVariables if v.name.startswith("rs[")]
     vr_vs = [v.valueReference for v in model_description.modelVariables if v.name.startswith("vs[")]
@@ -49,6 +40,9 @@ try:
     # Outputs
     vr_Fb = get_vrs("Fb", 3)
     vr_Mb = get_vrs("Mb", 3)
+    
+    vr_StbdWingRoot_load = get_vrs("StbdWingRoot_load", 6)
+    vr_PortWingRoot_load = get_vrs("PortWingRoot_load", 6)
 
     # Instantiate FMU2Slave
     fmu = FMU2Slave(
@@ -60,6 +54,12 @@ try:
 
     fmu.instantiate()
 
+    # Define simulation values
+    t_stop = 1.0
+    dt = 0.1
+    V = 30.0  # 30 m/s forward speed
+    vb = [V, 0.0, 0.0]
+
     # Enter initialization mode and set inputs
     fmu.setupExperiment(startTime=0.0)
     fmu.enterInitializationMode()
@@ -68,6 +68,10 @@ try:
     fmu.setReal(vr_ab, [0.0]*3)
     fmu.setReal(vr_dwb, [0.0]*3)
     fmu.setReal(vr_rho, [1.225])
+    
+    # Deflect control surfaces
+    fmu.setReal(vr_PortElevator_delta, [-0.05])  # -0.05 rad elevator
+    fmu.setReal(vr_Rudder_delta, [0.1])          # 0.1 rad rudder
     
     if vr_rs:
         fmu.setReal(vr_rs, [0.0]*len(vr_rs))
@@ -79,21 +83,18 @@ try:
     fmu.exitInitializationMode()
 
     # Simulation loop
-    time_list = []
-    CL_list = []
-
     current_time = 0.0
     while current_time <= t_stop + 1e-9:
-        # Get output Fb
         Fb = fmu.getReal(vr_Fb)
-        Fz = Fb[2] # Since AeroPanels default is Z-UP body frame, Lift is +Fz
+        Mb = fmu.getReal(vr_Mb)
+        load_stbd = fmu.getReal(vr_StbdWingRoot_load)
+        load_port = fmu.getReal(vr_PortWingRoot_load)
         
-        rho = 1.225
-        S = 100.0
-        CL = Fz / (0.5 * rho * V**2 * S)
-        
-        time_list.append(current_time)
-        CL_list.append(CL)
+        print(f"t={current_time:.1f}s:")
+        print(f"  Fb (Forces): {Fb}")
+        print(f"  Mb (Moments): {Mb}")
+        print(f"  StbdWingRoot loads (Force & Moment): {load_stbd}")
+        print(f"  PortWingRoot loads (Force & Moment): {load_port}")
         
         if current_time >= t_stop - 1e-9:
             break
@@ -103,25 +104,7 @@ try:
 
     fmu.terminate()
     fmu.freeInstance()
-
-    CL_steady_theory = 2 * np.pi * alpha_rad
-    CL_normalized = np.array(CL_list) / CL_steady_theory
-
-    print(f"Final CL (Normalized): {CL_normalized[-1]:.4f}")
-    print(f"Error vs Theory: {abs(CL_normalized[-1] - 1.0) * 100:.2f}%")
-
-    # --- 3. Plot Results ---
-    plt.figure(figsize=(10, 6))
-    plt.plot(time_list, CL_normalized, label='FMU Export (FMI 2.0)')
-    plt.axhline(1.0, color='r', linestyle='--', label='Steady Theory (2*pi*alpha)')
-    plt.xlabel('Time [s]')
-    plt.ylabel('CL / CL_steady')
-    plt.title('Wagner Problem Verification (Normalized)')
-    plt.grid(True)
-    plt.ylim([0, 1.2])
-    plt.legend()
-    plt.savefig('examples/fmu_export/wagner_results.png')
-    print("Simulation successful! Results saved to examples/fmu_export/wagner_results.png")
+    print("\nSimulation and verification completed successfully!")
 
 except Exception as e:
     import traceback

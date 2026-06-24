@@ -338,7 +338,7 @@ function Outputs(cache, model)
     Fb = GeometryToBodyAxis(Fg, model.modelProperties)
     Mb = GeometryToBodyAxis(Mg, model.modelProperties)
     Fmp = zeros(eltype(Fb), 6*length(model.monitorPoints))
-    Fmp = MonitorPointLoads!(Fmp, cache, model)
+    MonitorPointLoads!(Fmp, cache, model)
     return Fb, Mb, Fmp
 end
 

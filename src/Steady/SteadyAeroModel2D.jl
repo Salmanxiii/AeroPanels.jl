@@ -38,8 +38,8 @@ function AeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroModelPropert
     AIC = lu(AIC)
 
     segmentProps = ProcessSegments(ringMesh, sizes, wakeMesh, wakeSizes, props.symmXZ)
-    controlSurfaces2 = [ControlSurface(cs, sizes, mesh) for cs in controlSurfaces]
-    monitorPoints2 = [MonitorPoint(mp, sizes) for mp in monitorPoints]
+    controlSurfaces2 = ControlSurface{T}[ControlSurface(cs, sizes, mesh) for cs in controlSurfaces]
+    monitorPoints2 = MonitorPoint{T}[MonitorPoint(mp, sizes) for mp in monitorPoints]
     
     return AeroModel2D(mesh, ringMesh, wakeMesh, sizes, wakeSizes, panelProperties,
      props, AIC, segmentProps, controlSurfaces2, monitorPoints2)

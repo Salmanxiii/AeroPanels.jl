@@ -16,7 +16,7 @@ function BuildFMU(builder_func::Function, output_dir::String;
                   version="1.0.0",
                   extraLibraries=String[],
                   clean=true)
-    println("--- AeroPanels: Starting FMI 3.0 Build for $fmu_name ---")
+    println("--- AeroPanels: Starting FMI 2.0.5 Build for $fmu_name ---")
 
     # 1. Validation and Source Extraction
     m = methods(builder_func)
@@ -48,6 +48,9 @@ function BuildFMU(builder_func::Function, output_dir::String;
     model = builder_func()
     if !(model isa UnsteadyAeroModel2D); error("Builder must return an UnsteadyAeroModel2D"); end
     nx = NumberOfStates(model)
+    nCtrl = length(model.controlSurfaces)
+    nVert = model.sizes.totalVertices
+    nmp = length(model.monitorPoints)
 
     # 2. Dynamic Package Generation
     staging_dir = abspath(joinpath(output_dir, "fmu_build_staging_$(fmu_name)"))
@@ -93,10 +96,62 @@ function BuildFMU(builder_func::Function, output_dir::String;
     template_path = joinpath(assets_dir, "julia", "template.jl")
     template_content = read(template_path, String)
     
-    # Replace placeholders
+    # Sequential flat ValueReference offsets for FMI 2.0 scalar variables
+    vr_x = 1
+    vr_der_x = nx + 1
+    vr_vb = 2 * nx + 1
+    vr_wb = 2 * nx + 4
+    vr_ab = 2 * nx + 7
+    vr_dwb = 2 * nx + 10
+    vr_rho = 2 * nx + 13
+    vr_cs_start = 2 * nx + 14
+    
+    vr_rs = 2 * nx + 14 + 3 * nCtrl
+    vr_vs = vr_rs + 3 * nVert
+    vr_as = vr_vs + 3 * nVert
+    
+    vr_out_start = 2 * nx + 14 + 3 * nCtrl + (nVert > 0 ? 9 * nVert : 0)
+    vr_Fb = vr_out_start
+    vr_Mb = vr_out_start + 3
+    vr_mp_start = vr_out_start + 6
+
+    layout_str = """
+    const FMU_LAYOUT = (
+        nx = $nx,
+        nCtrl = $nCtrl,
+        nVert = $nVert,
+        nmp = $nmp,
+        
+        dim_vb = 3,
+        dim_wb = 3,
+        dim_ab = 3,
+        dim_dwb = 3,
+        dim_Fb = 3,
+        dim_Mb = 3,
+        
+        vr_x = $vr_x,
+        vr_der_x = $vr_der_x,
+        vr_vb = $vr_vb,
+        vr_wb = $vr_wb,
+        vr_ab = $vr_ab,
+        vr_dwb = $vr_dwb,
+        vr_rho = $vr_rho,
+        
+        vr_cs_start = $vr_cs_start,
+        vr_rs = $vr_rs,
+        vr_vs = $vr_vs,
+        vr_as = $vr_as,
+        
+        vr_Fb = $vr_Fb,
+        vr_Mb = $vr_Mb,
+        vr_mp_start = $vr_mp_start,
+    )
+    """
+
     content = replace(template_content, "{{FMU_NAME}}" => fmu_name)
     content = replace(content, "{{USER_CODE}}" => code_str)
     content = replace(content, "{{BUILDER_NAME}}" => func_name)
+    content = replace(content, "{{FMU_LAYOUT_DEF}}" => layout_str)
     
     # Write main module file
     write(joinpath(package_dir, "src", "$fmu_name.jl"), content)
@@ -137,7 +192,7 @@ function BuildFMU(builder_func::Function, output_dir::String;
 
     # 5. C-Shim Compilation
     c_assets_dir = joinpath(assets_dir, "c")
-    shim_source = joinpath(c_assets_dir, "fmi3_shim.c")
+    shim_source = joinpath(c_assets_dir, "fmi2_shim.c")
     shim_dest = joinpath(build_dir, "bin", fmu_name * ".dll")
 
     mingw_bin = joinpath(homedir(), ".julia", "artifacts", "b17bda08a19173572926f43a48aad5ef3d845e7c", "extracted_files", "mingw64", "bin")
@@ -151,11 +206,16 @@ function BuildFMU(builder_func::Function, output_dir::String;
 
     # 6. Packaging
     println("Generating modelDescription.xml...")
-    xml_doc = generate_xml_node(fmu_name, nx, version)
+    nCtrl = length(model.controlSurfaces)
+    csNames = [cs.name for cs in model.controlSurfaces]
+    nVert = model.sizes.totalVertices
+    nmp = length(model.monitorPoints)
+    mpNames = [mp.name for mp in model.monitorPoints]
+    xml_doc = generate_xml_node(fmu_name, nx, nCtrl, csNames, nVert, nmp, mpNames, version)
     XML.write(joinpath(staging_dir, "modelDescription.xml"), xml_doc)
 
     fmu_tmp = joinpath(staging_dir, "fmu_tmp")
-    bin_dest = joinpath(fmu_tmp, "binaries", "x86_64-windows")
+    bin_dest = joinpath(fmu_tmp, "binaries", "win64")
     mkpath(bin_dest)
     cp(joinpath(staging_dir, "modelDescription.xml"), joinpath(fmu_tmp, "modelDescription.xml"))
     for f in readdir(joinpath(build_dir, "bin"))
@@ -165,7 +225,7 @@ function BuildFMU(builder_func::Function, output_dir::String;
     fmu_path = abspath(joinpath(output_dir, fmu_name * ".fmu"))
     if isfile(fmu_path); rm(fmu_path, force=true); end
     zip_path = fmu_path * ".zip"
-    run(`powershell -NoProfile -Command "Compress-Archive -Force -Path $fmu_tmp/* -DestinationPath $zip_path; Rename-Item -Path $zip_path -NewName $(fmu_name * ".fmu")"`)
+    run(`powershell -NoProfile -Command "Compress-Archive -Force -Path '$fmu_tmp/*' -DestinationPath '$zip_path'; Rename-Item -Path '$zip_path' -NewName '$(fmu_name).fmu'"`)
 
     if clean; rm(staging_dir, recursive=true, force=true); end
     println("--- AeroPanels: FMI Build Complete! ---")

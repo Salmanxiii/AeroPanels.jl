@@ -127,8 +127,8 @@ function UnsteadyAeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroMode
     (K8, K9), (L3, L4, L5, L6, Γw0Indices, Γw1Indices, ΓbTEIndices) = UnsteadyWakeInfluence(panelProperties.rCollocation,
     panelProperties.normal, ringMesh, wakeMesh, sizes, wakeSizes, props.symmXZ, Δxw);
     segmentProps = ProcessSegments(ringMesh, sizes, wakeMesh, wakeSizes, props.symmXZ)
-    controlSurfaces2 = [ControlSurface(cs, sizes, mesh) for cs in controlSurfaces]
-    monitorPoints2 = [MonitorPoint(mp, sizes) for mp in monitorPoints]
+    controlSurfaces2 = ControlSurface{T}[ControlSurface(cs, sizes, mesh) for cs in controlSurfaces]
+    monitorPoints2 = MonitorPoint{T}[MonitorPoint(mp, sizes) for mp in monitorPoints]
 
     return UnsteadyAeroModel2D(mesh, ringMesh, wakeMesh, sizes, wakeSizes, panelProperties,
     props, segmentProps, K8, K9, L3, L4, L5, L6, Γw0Indices, Γw1Indices, ΓbTEIndices, controlSurfaces2, monitorPoints2)
