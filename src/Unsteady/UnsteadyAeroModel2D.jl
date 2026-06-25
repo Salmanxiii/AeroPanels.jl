@@ -21,7 +21,7 @@ function UnsteadyWakeInfluence(rCollocation::Vector{Point3{T}}, normal, ringMesh
     K1 = Influence(rCollocation, normal, ringMesh, symmXZ);
     K2 = AICwake[:, wakeLEIndices]
     # K3 = @view AICwake[:, 1:end .∉ [wakeLEIndices]]
-    K3 = @view AICwake[:, wakeNonKuttaIndices]
+    K3 = AICwake[:, wakeNonKuttaIndices]
 
     bodyTEIndices = TEPanelIndex(bodySizes)
     totalKuttaPanels = length(wakeLEIndices)
