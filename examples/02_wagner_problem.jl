@@ -14,8 +14,6 @@ c, V, α = 1.0, 1.0, 2.0
 surf = AeroSurface2D(20, 1, chord=(c, c), span=100.0)
 props = AeroModelProperties(c=c, b=100.0, S=100.0)
 model = UnsteadyAeroModel2D([surf], props, V, nWake=500, wakeLength=20.)
-
-u0 = zeros(NumberOfStates(model))
 tspan = (0.0, 20.0)
 
 # # 2. Input Function
@@ -28,7 +26,7 @@ end
 
 # # 3. Integration and Results
 # We use `AeroSolve` to solve the state-space system and automatically extract the forces.
-res = AeroSolve(model, u0, tspan, wagner_inputs!, solver=Tsit5())
+res = AeroSolve(model, tspan, wagner_inputs!, solver=Tsit5())
 CL_UVLM = res.CL;
 
 # # 4. Analytical Solution: Wagner's Function (Jones Approximation)

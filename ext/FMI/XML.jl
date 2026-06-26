@@ -50,6 +50,14 @@ function generate_xml_node(name, nx, nCtrl, csNames, nVert, nmp, mpNames, versio
         providesDirectionalDerivative="false"
     ))
     
+    push!(root, h.CoSimulation(
+        modelIdentifier=name,
+        canHandleVariableCommunicationStepSize="true",
+        canGetAndSetFMUstate="true",
+        canSerializeFMUstate="false",
+        providesDirectionalDerivative="false"
+    ))
+    
     vars = h.ModelVariables()
     
     output_indices = Int[]
@@ -65,7 +73,7 @@ function generate_xml_node(name, nx, nCtrl, csNames, nVert, nmp, mpNames, versio
     
     # 2. Derivatives der(x)
     for i in 1:nx
-        push!(vars, fmi2_real_variable("der(x[$i])", nx + i, "local"; derivative=i, initial="calculated"))
+        push!(vars, fmi2_real_variable("der_x[$i]", nx + i, "local"; derivative=i, initial="calculated"))
         push!(derivative_indices, nx + i)
         current_index += 1
     end
@@ -99,9 +107,9 @@ function generate_xml_node(name, nx, nCtrl, csNames, nVert, nmp, mpNames, versio
     vr_offset += 1
     for k in 1:nCtrl
         cs_name = csNames[k]
-        push!(vars, fmi2_real_variable(cs_name * "_delta", vr_offset + 1, "input"; start=0.0))
-        push!(vars, fmi2_real_variable(cs_name * "_delta_dot", vr_offset + 2, "input"; start=0.0))
-        push!(vars, fmi2_real_variable(cs_name * "_delta_ddot", vr_offset + 3, "input"; start=0.0))
+        push!(vars, fmi2_real_variable("u_cs." * cs_name, vr_offset + 1, "input"; start=0.0))
+        push!(vars, fmi2_real_variable("du_cs." * cs_name, vr_offset + 2, "input"; start=0.0))
+        push!(vars, fmi2_real_variable("ddu_cs." * cs_name, vr_offset + 3, "input"; start=0.0))
         vr_offset += 3
         current_index += 3
     end

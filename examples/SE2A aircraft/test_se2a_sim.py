@@ -29,8 +29,8 @@ try:
     vr_rho = [next(v.valueReference for v in model_description.modelVariables if v.name == "rho")]
     
     # Control surfaces
-    vr_PortElevator_delta = [next(v.valueReference for v in model_description.modelVariables if v.name == "PortElevator_delta")]
-    vr_Rudder_delta = [next(v.valueReference for v in model_description.modelVariables if v.name == "Rudder_delta")]
+    vr_PortElevator_delta = [next(v.valueReference for v in model_description.modelVariables if v.name == "u_cs.PortElevator")]
+    vr_Rudder_delta = [next(v.valueReference for v in model_description.modelVariables if v.name == "u_cs.Rudder")]
     
     # Optional structural nodes
     vr_rs = [v.valueReference for v in model_description.modelVariables if v.name.startswith("rs[")]

@@ -66,7 +66,7 @@ function BuildFMU(builder_func::Function, output_dir::String;
     package_dir_esc = replace(package_dir, "\\" => "\\\\")
     
     # Setup dependencies
-    defaultLibraries = ["LinearAlgebra", "StaticArrays", "SparseArrays", "GeometryBasics"]
+    defaultLibraries = ["LinearAlgebra", "StaticArrays", "SparseArrays", "GeometryBasics", "OrdinaryDiffEqTsit5"]
     all_libs = unique([defaultLibraries..., extraLibraries...])
     
     setup_script = joinpath(staging_dir, "setup_project.jl")

@@ -158,9 +158,8 @@ function CalculateUnsteadyAerodynamicForce!(Fa, dΓb, Γb, Γw, Γs, vVertex, mo
     CalculateAerodynamicForce!(FaSteady, Γb, Γw, Γs, vVertex, model, ρ)
 
     # Unsteady contribution: ρ * dΓ/dt * Area * Normal
-    @batch for i in 1:n
-        Fa[nts+i] = ρ * dΓb[i] * model.panelProperties.area[i] * model.panelProperties.normal[i]
-    end
+    Fa_uns = @view Fa[nts+1:end]
+    Fa_uns .= ρ .* dΓb .* model.panelProperties.area .* model.panelProperties.normal
     return nothing
 end
 
@@ -318,17 +317,24 @@ end
 function (model::UnsteadyAeroModel2D)(dΓw1, Γw1, p::UnsteadySimParams, t)
     # 1. Update inputs for current t
     p.input_func!(p.inputs, t)
+    model(dΓw1, Γw1, (p.inputs, p.cache), t)
+    return nothing
+end
+
+function (model::UnsteadyAeroModel2D)(dΓw1, Γw1, p::Tuple{AeroInputs, UnsteadyAeroCache}, t)
+
+    inputs, cache  = p
 
     # 2. Recompute steady kinematics to get new normalwash
-    AddSteadyKinematics!(p.cache.rVertex, p.cache.vVertex, SVector(p.inputs.vb), SVector(p.inputs.ωb),
-                         p.inputs.δc, p.inputs.dδc, p.inputs.rs, p.inputs.vs, model)
-    CalculateNormalwash!(p.cache.b, p.cache.rVertex, p.cache.vVertex, model)
+    AddSteadyKinematics!(cache.rVertex, cache.vVertex, SVector(inputs.vb), SVector(inputs.ωb),
+                         inputs.δc, inputs.dδc, inputs.rs, inputs.vs, model)
+    CalculateNormalwash!(cache.b, cache.rVertex, cache.vVertex, model)
 
-    V = norm(p.inputs.vb)
+    V = norm(inputs.vb)
 
     # 3. Calculate derivative
     mul!(dΓw1, model.K8, Γw1)
-    mul!(dΓw1, model.K9, p.cache.b, 1.0, 1.0)
+    mul!(dΓw1, model.K9, cache.b, 1.0, 1.0)
     dΓw1 .*= V
     return nothing
 end

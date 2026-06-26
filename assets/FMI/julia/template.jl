@@ -8,6 +8,7 @@ using LinearAlgebra
 using StaticArrays
 using GeometryBasics
 using AeroPanels
+using OrdinaryDiffEqTsit5
 
 # --- INJECTED CODE START ---
 {{USER_CODE}}
@@ -18,11 +19,31 @@ using AeroPanels
 """
 A stable instance wrapper for the FMU to ensure perfect type inference for JuliaC.
 """
+struct AeroODEParams
+    model::UnsteadyAeroModel2D{Float64}
+    cache::UnsteadyAeroCache{Float64}
+    inputs::AeroInputs{Float64}
+end
+
+function aero_ode!(dy, y, params::AeroODEParams, t)
+    params.model(dy, y, (params.inputs, params.cache), t)
+    copyto!(params.cache.Γw1, y)
+    copyto!(params.cache.dΓw1, dy)
+    return nothing
+end
+
 mutable struct ModelInstance
     model::UnsteadyAeroModel2D{Float64}
     cache::UnsteadyAeroCache{Float64}
     inputs::AeroInputs{Float64}
     time::Float64
+    outputsSynced::Bool
+    solverSynced::Bool
+    cached_Fb::Vector{Float64}
+    cached_Mb::Vector{Float64}
+    cached_Fmp::Vector{Float64}
+    integrator::Any
+    integrator_dirty::Bool
 end
 
 const INSTANCES = Dict{UInt64, ModelInstance}()
@@ -77,7 +98,17 @@ Base.@ccallable function fmi2Instantiate(
         model = {{BUILDER_NAME}}()
         cache = CreateCacheArrays(model)
         inputs = AeroInputs(model)
-        INSTANCES[id] = ModelInstance(model, cache, inputs, 0.0)
+        cached_Fb = zeros(Float64, 3)
+        cached_Mb = zeros(Float64, 3)
+        cached_Fmp = zeros(Float64, 6 * FMU_LAYOUT.nmp)
+        
+        ode_params = AeroODEParams(model, cache, inputs)
+        prob = ODEProblem(aero_ode!, copy(cache.Γw1), (0.0, 1e9), ode_params)
+        integrator = init(prob, Tsit5(); save_everystep=false, adaptive=true, reltol=1e-3, abstol=1e-6)
+        
+        comp = ModelInstance(model, cache, inputs, 0.0, false, false, cached_Fb, cached_Mb, cached_Fmp, integrator, false)
+        
+        INSTANCES[id] = comp
         return fmi2Component(id)
     end
 end
@@ -104,9 +135,11 @@ Base.@ccallable function fmi2Terminate(instance::fmi2Component)::fmi2Status; ret
 Base.@ccallable function fmi2Reset(instance::fmi2Component)::fmi2Status
     comp = get_instance(instance)
     fill!(comp.cache.Γw1, 0.0)
-    # Reset inputs to default
     comp.inputs.ρ = 1.225
     comp.time = 0.0
+    comp.outputsSynced = false
+    comp.solverSynced = false
+    comp.integrator_dirty = true
     return fmi2OK
 end
 
@@ -118,22 +151,28 @@ Base.@ccallable function fmi2GetReal(instance::fmi2Component, vr::Ptr{fmi2ValueR
     vrs = unsafe_wrap(Array, vr, nvr, own=false)
     vals = unsafe_wrap(Array, value, nvr, own=false)
 
-    # 1. Check if any output variables are requested.
-    # If yes, run the solver once to cache the results.
     any_outputs_requested = false
     for i in 1:nvr
-        v = vrs[i]
-        if v >= FMU_LAYOUT.vr_Fb
+        if vrs[i] >= FMU_LAYOUT.vr_Fb
             any_outputs_requested = true
             break
         end
     end
 
-    if any_outputs_requested
+    if any_outputs_requested && !comp.outputsSynced
         AeroSolve!(comp.cache, SVector(comp.inputs.vb), SVector(comp.inputs.ab), 
                    SVector(comp.inputs.ωb), SVector(comp.inputs.dωb), 
                    comp.inputs.δc, comp.inputs.dδc, comp.inputs.ddδc, 
                    comp.inputs.rs, comp.inputs.vs, comp.inputs.as, comp.cache.Γw1, comp.model, comp.inputs.ρ)
+        comp.solverSynced = true
+                   
+        Fb, Mb, Fmp = AeroPanels.Outputs(comp.cache, comp.model)
+        copyto!(comp.cached_Fb, Fb)
+        copyto!(comp.cached_Mb, Mb)
+        if FMU_LAYOUT.nmp > 0
+            copyto!(comp.cached_Fmp, Fmp)
+        end
+        comp.outputsSynced = true
     end
 
     for i in 1:nvr
@@ -183,16 +222,13 @@ Base.@ccallable function fmi2GetReal(instance::fmi2Component, vr::Ptr{fmi2ValueR
             vals[i] = comp.inputs.as[div(v - FMU_LAYOUT.vr_as, 3) + 1][mod(v - FMU_LAYOUT.vr_as, 3) + 1]
             
         elseif v >= FMU_LAYOUT.vr_Fb && v < FMU_LAYOUT.vr_Fb + 3
-            Fb, _, _ = AeroPanels.Outputs(comp.cache, comp.model)
-            vals[i] = Fb[v - FMU_LAYOUT.vr_Fb + 1]
+            vals[i] = comp.cached_Fb[v - FMU_LAYOUT.vr_Fb + 1]
             
         elseif v >= FMU_LAYOUT.vr_Mb && v < FMU_LAYOUT.vr_Mb + 3
-            _, Mb, _ = AeroPanels.Outputs(comp.cache, comp.model)
-            vals[i] = Mb[v - FMU_LAYOUT.vr_Mb + 1]
+            vals[i] = comp.cached_Mb[v - FMU_LAYOUT.vr_Mb + 1]
             
         elseif FMU_LAYOUT.nmp > 0 && v >= FMU_LAYOUT.vr_mp_start && v < FMU_LAYOUT.vr_mp_start + 6 * FMU_LAYOUT.nmp
-            _, _, Fmp = AeroPanels.Outputs(comp.cache, comp.model)
-            vals[i] = Fmp[v - FMU_LAYOUT.vr_mp_start + 1]
+            vals[i] = comp.cached_Fmp[v - FMU_LAYOUT.vr_mp_start + 1]
             
         else
             return fmi2Error
@@ -209,6 +245,8 @@ Base.@ccallable function fmi2SetReal(instance::fmi2Component, vr::Ptr{fmi2ValueR
     vrs = unsafe_wrap(Array, vr, nvr, own=false)
     vals = unsafe_wrap(Array, value, nvr, own=false)
 
+    comp.outputsSynced = false
+    comp.solverSynced = false
     for i in 1:nvr
         v = vrs[i]
         
@@ -288,7 +326,11 @@ end
 
 Base.@ccallable function fmi2SetTime(instance::fmi2Component, time::fmi2Real)::fmi2Status
     comp = get_instance(instance)
-    comp.time = time
+    if comp.time != time
+        comp.time = time
+        comp.outputsSynced = false
+        comp.solverSynced = false
+    end
     return fmi2OK
 end
 
@@ -296,6 +338,9 @@ Base.@ccallable function fmi2SetContinuousStates(instance::fmi2Component, contin
     comp = get_instance(instance)
     states = unsafe_wrap(Array, continuousStates, nContinuousStates, own=false)
     copyto!(comp.cache.Γw1, states)
+    comp.outputsSynced = false
+    comp.solverSynced = false
+    comp.integrator_dirty = true
     return fmi2OK
 end
 
@@ -303,10 +348,10 @@ Base.@ccallable function fmi2GetDerivatives(instance::fmi2Component, derivatives
     comp = get_instance(instance)
     ders = unsafe_wrap(Array, derivatives, nContinuousStates, own=false)
     
-    AeroSolve!(comp.cache, SVector(comp.inputs.vb), SVector(comp.inputs.ab), 
-               SVector(comp.inputs.ωb), SVector(comp.inputs.dωb), 
-               comp.inputs.δc, comp.inputs.dδc, comp.inputs.ddδc, 
-               comp.inputs.rs, comp.inputs.vs, comp.inputs.as, comp.cache.Γw1, comp.model, comp.inputs.ρ)
+    if !comp.solverSynced
+        comp.model(comp.cache.dΓw1, comp.cache.Γw1, (comp.inputs, comp.cache), comp.time)
+        comp.solverSynced = true
+    end
                
     copyto!(ders, comp.cache.dΓw1)
     return fmi2OK
@@ -401,6 +446,9 @@ Base.@ccallable function fmi2SetFMUstate(instance::fmi2Component, FMUstate::Ptr{
     copyto!(comp.inputs.vs, snapshot.vs)
     copyto!(comp.inputs.as, snapshot.as)
     comp.time = snapshot.time
+    comp.outputsSynced = false
+    comp.solverSynced = false
+    comp.integrator_dirty = true
     return fmi2OK
 end
 
@@ -444,13 +492,17 @@ Base.@ccallable function fmi2DoStep(
 )::fmi2Status
     comp = get_instance(instance)
 
-    AeroSolve!(comp.cache, SVector(comp.inputs.vb), SVector(comp.inputs.ab), 
-               SVector(comp.inputs.ωb), SVector(comp.inputs.dωb), 
-               comp.inputs.δc, comp.inputs.dδc, comp.inputs.ddδc, 
-               comp.inputs.rs, comp.inputs.vs, comp.inputs.as, comp.cache.Γw1, comp.model, comp.inputs.ρ)
-               
-    comp.cache.Γw1 .+= comp.cache.dΓw1 .* communicationStepSize
+    if comp.integrator_dirty || comp.integrator.t != currentCommunicationPoint
+        reinit!(comp.integrator, comp.cache.Γw1; t0=currentCommunicationPoint, erase_sol=true, reset_dt=true)
+        comp.integrator_dirty = false
+    end
+    
+    step!(comp.integrator, communicationStepSize, true)
+    
+    copyto!(comp.cache.Γw1, comp.integrator.u)
     comp.time = currentCommunicationPoint + communicationStepSize
+    comp.outputsSynced = false
+    comp.solverSynced = false
     return fmi2OK
 end
 Base.@ccallable function fmi2CancelStep(p1::fmi2Component)::fmi2Status; return fmi2Error; end
