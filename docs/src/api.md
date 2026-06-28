@@ -18,6 +18,9 @@ PanelProperties
 ```@docs
 AeroSolve
 AeroSolve!
+PrepareCacheForStates!
+PrepareCacheForOutputs!
+Outputs!
 CreateCacheArrays
 GetStabilityCoefficients
 GetTotalForces
@@ -35,7 +38,10 @@ MonitorPointLoads!
 ## Secondary Functions
 
 ```@docs
-AeroInputs
+UnsteadyAeroCache
+InputCache
+OutputCache
+StateCache
 AeroSurface2D
 Mirror
 SegmentProperties

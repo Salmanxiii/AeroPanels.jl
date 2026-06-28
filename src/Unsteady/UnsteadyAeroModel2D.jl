@@ -134,23 +134,6 @@ function UnsteadyAeroModel2D(surfaces::Vector{AeroSurface2D{T}}, props::AeroMode
     props, segmentProps, K8, K9, L3, L4, L5, L6, Γw0Indices, Γw1Indices, ΓbTEIndices, controlSurfaces2, monitorPoints2)
 end
 
-"""
-    (model::UnsteadyAeroModel2D)(dΓw1, Γw1, p, t=0.0)
-
-Functor for OrdinaryDiffEq. Solves for the wake transport states derivative.
-`p` can be `b` (normalwash) or a tuple `(b, V)`.
-"""
-function (model::UnsteadyAeroModel2D)(dΓw1, Γw1, p, t=0.0)
-    if p isa Tuple
-        b, V = p
-    else
-        b, V = p, 1.0
-    end
-    mul!(dΓw1, model.K8, Γw1)
-    mul!(dΓw1, model.K9, b, 1.0, 1.0)
-    dΓw1 .*= V
-    return nothing
-end
 
 """
 $(SIGNATURES)

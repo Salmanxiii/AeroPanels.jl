@@ -7,7 +7,9 @@ using SparseArrays
 using Polyester
 using DocStringExtensions
 using OrdinaryDiffEqTsit5: ODEProblem, solve
+using DiffEqCallbacks
 using ForwardDiff
+using ComponentArrays
 
 import Base: show, size, iterate, length, @kwdef
 
@@ -24,6 +26,7 @@ include("MonitorPoints.jl")
 include("Steady/SteadyAeroModel2D.jl")
 include("Steady/solve.jl")
 include("Unsteady/UnsteadyAeroModel2D.jl")
+include("Unsteady/caches.jl")
 include("Unsteady/solve.jl")
 include("Misc.jl")
 
@@ -44,7 +47,7 @@ export SolveForces, NumberOfStates, CSDefinition, ControlSurface, MPDefinition
 export PlotModel, GetStabilityCoefficients
 
 export GetTotalForces, GetStabilityDerivatives, AeroSolve!, CreateCacheArrays, MonitorPointLoads!
-export AeroInputs, BuildFMU, UnsteadyAeroCache
+export BuildFMU, UnsteadyAeroCache, InputCache, OutputCache, StateCache
 
 function PlotModel end
 

@@ -1,66 +1,7 @@
-"""
-$(TYPEDEF)
-
-A struct holding the cache arrays for unsteady aerodynamic simulations to minimize allocations.
-
-$(TYPEDFIELDS)
-"""
-struct UnsteadyAeroCache{T}
-    rVertex::Vector{Point3{T}}
-    vVertex::Vector{Point3{T}}
-    aVertex::Vector{Point3{T}}
-    b::Vector{T}
-    db::Vector{T}
-    Γw1::Vector{T}
-    dΓw1::Vector{T}
-    Γb::Vector{T}
-    dΓb::Vector{T}
-    Γw::Vector{T}
-    Γs::Vector{T}
-    Fa::Vector{Point3{T}}
-    Ra::Vector{Point3{T}}
-end
+# --- Verification & Calculations Functions (Unmodified) ---
 
 """
-$(SIGNATURES)
-
-Create and return a cache of arrays for the unsteady solver.
-"""
-function CreateCacheArrays(model::UnsteadyAeroModel2D{T}) where T
-    return CreateCacheArrays(model, T)
-end
-
-function CreateCacheArrays(model::UnsteadyAeroModel2D, T)
-    nVert = model.sizes.totalVertices
-    nPan = model.sizes.totalPanels
-    nWake1 = NumberOfStates(model)
-    nWake = model.wakeSizes.totalPanels
-    nSSeg = model.sizes.totalSpanSegments
-    nCSeg = model.sizes.totalChordSegments
-
-    TArray = Point3{T}
-    rVertex = zeros(TArray, nVert)
-    vVertex = zeros(TArray, nVert)
-    aVertex = zeros(TArray, nVert)
-    b = zeros(T, nPan)
-    db = zeros(T, nPan)
-    Γw1 = zeros(T, nWake1)
-    dΓw1 = zeros(T, nWake1)
-    Γb = zeros(T, nPan)
-    dΓb = zeros(T, nPan)
-    Γw = zeros(T, nWake)
-    Γs = zeros(T, nSSeg + nCSeg)
-    Fa = zeros(TArray, nSSeg + nCSeg + nPan)
-    Ra = zeros(TArray, nSSeg + nCSeg + nPan)
-    Ra[1:nSSeg + nCSeg] .= model.segmentProps.mid
-    Ra[nSSeg + nCSeg + 1:end] .= model.panelProperties.rMid
-
-    return UnsteadyAeroCache(rVertex, vVertex, aVertex, b, db, 
-            Γw1, dΓw1, Γb, dΓb, Γw, Γs, Fa, Ra)
-end
-
-"""
-$(SIGNATURES)
+    AddUnsteadyKinematics!(aVertex, rVertex, ab, dωb, ddδc, as, model)
 
 Calculate the unsteady kinematics (vertex accelerations).
 """
@@ -81,7 +22,7 @@ function AddUnsteadyKinematics!(aVertex, rVertex,
 end
 
 """
-$(SIGNATURES)
+    CalculateDNormalwash!(db, rVertex, vVertex, aVertex, model)
 
 Calculate the time derivative of the normal wash vector `db`.
 """
@@ -113,7 +54,7 @@ function CalculateDNormalwash!(db, rVertex, vVertex, aVertex, model)
 end
 
 """
-$(SIGNATURES)
+    SolveUnsteadyCirculation!(dΓw1, Γw1, dΓb, Γb, Γw, Γs, b, db, V, model::UnsteadyAeroModel2D)
 
 Solve for the time derivatives and intermediate circulations of the unsteady system.
 """
@@ -134,8 +75,6 @@ function SolveUnsteadyCirculation!(dΓw1, Γw1, dΓb, Γb, Γw, Γs, b, db, V, m
     mul!(dΓb, model.L4, db, -1.0, 1.0)
 
     # Reconstruct the full wake circulation vector Γw from transport states and Kutta condition
-    # Γw[transport_indices] = Γw1
-    # Γw[kutta_indices] = Γb[TE_indices]
     Γw[model.Γw1Indices] .= Γw1
     Γw[model.Γw0Indices] .= @view Γb[model.ΓbTEIndices]
 
@@ -144,7 +83,7 @@ function SolveUnsteadyCirculation!(dΓw1, Γw1, dΓb, Γb, Γw, Γs, b, db, V, m
 end
 
 """
-$(SIGNATURES)
+    CalculateUnsteadyAerodynamicForce!(Fa, dΓb, Γb, Γw, Γs, vVertex, model::UnsteadyAeroModel2D, ρ)
 
 Calculate aerodynamic forces for the unsteady model.
 """
@@ -152,7 +91,6 @@ function CalculateUnsteadyAerodynamicForce!(Fa, dΓb, Γb, Γw, Γs, vVertex, mo
     nss = model.sizes.totalSpanSegments
     ncs = model.sizes.totalChordSegments
     nts = nss + ncs
-    n = model.sizes.totalPanels
     
     FaSteady = @view Fa[1:nts]
     CalculateAerodynamicForce!(FaSteady, Γb, Γw, Γs, vVertex, model, ρ)
@@ -163,222 +101,154 @@ function CalculateUnsteadyAerodynamicForce!(Fa, dΓb, Γb, Γw, Γs, vVertex, mo
     return nothing
 end
 
-"""
-$(SIGNATURES)
+# --- Split Solver Setup Functions ---
 
-In-place version of the unsteady `AeroSolve`.
 """
-function AeroSolve!(cache, vb, ab, ωb, dωb, δc, dδc, ddδc, rs, vs, as, Γw1, model::UnsteadyAeroModel2D, ρ=1.225)
-    AddSteadyKinematics!(cache.rVertex, cache.vVertex, vb, ωb, δc, dδc, rs, vs, model)
-    AddUnsteadyKinematics!(cache.aVertex, cache.rVertex, ab, dωb, ddδc, as, model)
-    
+    PrepareCacheForStates!(cache::UnsteadyAeroCache, inputs, model::UnsteadyAeroModel2D)
+
+Calculates dynamic kinematics and panel normal wash in the cache.
+"""
+function PrepareCacheForStates!(cache::UnsteadyAeroCache, inputs, model::UnsteadyAeroModel2D)
+    AddSteadyKinematics!(cache.rVertex, cache.vVertex, SVector{3}(inputs.vb), SVector{3}(inputs.ωb), 
+                         inputs.δc, inputs.dδc, reinterpret(Point3{eltype(inputs)}, inputs.rs), reinterpret(Point3{eltype(inputs)}, inputs.vs), model)
     CalculateNormalwash!(cache.b, cache.rVertex, cache.vVertex, model)
+    return nothing
+end
+
+"""
+    PrepareCacheForOutputs!(cache::UnsteadyAeroCache, inputs, Γw1, dΓw1, model::UnsteadyAeroModel2D)
+
+Calculates the unsteady wash derivative, wake circulations, and in-place aerodynamic forces.
+"""
+function PrepareCacheForOutputs!(cache::UnsteadyAeroCache, inputs, Γw1, dΓw1, model::UnsteadyAeroModel2D)
+    AddUnsteadyKinematics!(cache.aVertex, cache.rVertex, SVector{3}(inputs.ab), SVector{3}(inputs.dωb), 
+                           inputs.ddδc, reinterpret(Point3{eltype(inputs)}, inputs.as), model)
     CalculateDNormalwash!(cache.db, cache.rVertex, cache.vVertex, cache.aVertex, model)
     
-    V = norm(vb)
-    SolveUnsteadyCirculation!(cache.dΓw1, Γw1, cache.dΓb, cache.Γb, cache.Γw, cache.Γs, cache.b, cache.db, V, model)
-    CalculateUnsteadyAerodynamicForce!(cache.Fa, cache.dΓb, cache.Γb, cache.Γw, cache.Γs, cache.vVertex, model, ρ)
-    return nothing
-end
-
-"""
-    AeroSolve(model::UnsteadyAeroModel2D, Γw1_0, tspan, input_func!; solver)
-
-Solve an unsteady time-domain simulation and auto-compute forces/coefficients.
-"""
-function AeroSolve(model::UnsteadyAeroModel2D{T}, tspan, input_func!; solver, steady=false) where T
-    inputs = AeroInputs(model, T=T)
-    cache = CreateCacheArrays(model, T)
-    
-    p = UnsteadySimParams(input_func!, inputs, cache)
-
-    if steady
-        p.input_func!(p.inputs, 0.0)
-        AddSteadyKinematics!(p.cache.rVertex, p.cache.vVertex, SVector(p.inputs.vb), SVector(p.inputs.ωb),
-                            p.inputs.δc, p.inputs.dδc, p.inputs.rs, p.inputs.vs, model)
-        CalculateNormalwash!(p.cache.b, p.cache.rVertex, p.cache.vVertex, model)    
-        V = norm(p.inputs.vb)
-        p.cache.Γw1 .= -model.K8 \ (model.K9 * p.cache.b)
-     end
-    Γw1_0 = p.cache.Γw1 
-    prob = ODEProblem(model, Γw1_0, tspan, p)
-    
-    sol = solve(prob, solver)
-    
-    n_steps = length(sol.t)
-    CX = zeros(T, n_steps)
-    CY = zeros(T, n_steps)
-    CZ = zeros(T, n_steps)
-    CD = zeros(T, n_steps)
-    CL = zeros(T, n_steps)
-    F_tot = Vector{SVector{3, T}}(undef, n_steps)
-    M_tot = Vector{SVector{3, T}}(undef, n_steps)
-    
-    n_mp = length(model.monitorPoints)
-    # mp_loads = [Vector{SVector{6, T}}(undef, n_steps) for _ in 1:n_mp]
-    mp_loads = zeros(T, n_steps,  6 * n_mp)
-    Fmp = zeros(T, 6 * n_mp) # Preallocate
-    
-    # Post-process for all time steps
-    for (i, t) in enumerate(sol.t)
-        input_func!(inputs, t)
-        Γw1 = sol.u[i]
-        
-        AeroSolve!(cache, SVector(inputs.vb), SVector(inputs.ab), SVector(inputs.ωb), SVector(inputs.dωb), 
-                   inputs.δc, inputs.dδc, inputs.ddδc, inputs.rs, inputs.vs, inputs.as, Γw1, model, inputs.ρ)
-        
-        F, M = GetTotalForces(cache, model)
-        F_tot[i] = F
-        M_tot[i] = M
-        
-        CFstab, CMstab = GetStabilityCoefficients(cache, SVector(inputs.vb), inputs.ρ, model)
-        CX[i] = CFstab[1]
-        CY[i] = CFstab[2]
-        CZ[i] = CFstab[3]
-        CD[i] = CFstab[1]
-        CL[i] = -CFstab[3]
-        
-        if n_mp > 0
-            MonitorPointLoads!(Fmp, cache, model)
-            mp_loads[i,:] = Fmp
-            # for j in 1:n_mp
-            #     mp_loads[j][i] = SVector{6, T}(Fmp[6*(j-1)+1 : 6*(j-1)+6]...)                
-            # end
-        end
-    end
-    
-    return (t=sol.t, CX=CX, CY=CY, CZ=CZ, CD=CD, CL=CL, F=F_tot, M=M_tot, mp_loads=mp_loads, sol=sol)
-end
-
-
-"""
-$(TYPEDEF)
-
-A struct holding the time-dependent inputs for unsteady aerodynamic simulations.
-These inputs are meant to be updated in-place during time integration.
-"""
-mutable struct AeroInputs{T}
-    vb::MVector{3, T}
-    ab::MVector{3, T}
-    ωb::MVector{3, T}
-    dωb::MVector{3, T}
-    δc::Vector{T}
-    dδc::Vector{T}
-    ddδc::Vector{T}
-    rs::Vector{Point3{T}}
-    vs::Vector{Point3{T}}
-    as::Vector{Point3{T}}
-    ρ::T
-end
-
-function AeroInputs(model::UnsteadyAeroModel2D; T=Float64)
-    nVert = model.sizes.totalVertices
-    nCtrl = length(model.controlSurfaces)
-    return AeroInputs{T}(
-        MVector{3, T}(0,0,0),
-        MVector{3, T}(0,0,0),
-        MVector{3, T}(0,0,0),
-        MVector{3, T}(0,0,0),
-        zeros(T, nCtrl),
-        zeros(T, nCtrl),
-        zeros(T, nCtrl),
-        fill(zero(Point3{T}), nVert),
-        fill(zero(Point3{T}), nVert),
-        fill(zero(Point3{T}), nVert),
-        1.225
-    )
-end
-
-function AeroInputs(model::UnsteadyAeroModel2D{Float64})
-    nVert = model.sizes.totalVertices
-    nCtrl = length(model.controlSurfaces)
-    return AeroInputs{Float64}(
-        MVector{3, Float64}(0,0,0),
-        MVector{3, Float64}(0,0,0),
-        MVector{3, Float64}(0,0,0),
-        MVector{3, Float64}(0,0,0),
-        zeros(Float64, nCtrl),
-        zeros(Float64, nCtrl),
-        zeros(Float64, nCtrl),
-        fill(zero(Point3{Float64}), nVert),
-        fill(zero(Point3{Float64}), nVert),
-        fill(zero(Point3{Float64}), nVert),
-        1.225
-    )
-end
-
-
-struct UnsteadySimParams{F, I, C}
-    input_func!::F
-    inputs::I
-    cache::C
-end
-
-function (model::UnsteadyAeroModel2D)(dΓw1, Γw1, p::UnsteadySimParams, t)
-    # 1. Update inputs for current t
-    p.input_func!(p.inputs, t)
-    model(dΓw1, Γw1, (p.inputs, p.cache), t)
-    return nothing
-end
-
-function (model::UnsteadyAeroModel2D)(dΓw1, Γw1, p::Tuple{AeroInputs, UnsteadyAeroCache}, t)
-
-    inputs, cache  = p
-
-    # 2. Recompute steady kinematics to get new normalwash
-    AddSteadyKinematics!(cache.rVertex, cache.vVertex, SVector(inputs.vb), SVector(inputs.ωb),
-                         inputs.δc, inputs.dδc, inputs.rs, inputs.vs, model)
-    CalculateNormalwash!(cache.b, cache.rVertex, cache.vVertex, model)
-
+    # Pre-allocated arrays inside cache receive the circulation derivative values
     V = norm(inputs.vb)
+    SolveUnsteadyCirculation!(dΓw1, Γw1, cache.dΓb, cache.Γb, cache.Γw, cache.Γs, cache.b, cache.db, V, model)
+    CalculateUnsteadyAerodynamicForce!(cache.Fa, cache.dΓb, cache.Γb, cache.Γw, cache.Γs, cache.vVertex, model, inputs.ρ[1])
+    return nothing
+end
+
+
+# --- Time Integration Functor ---
+
+function (model::UnsteadyAeroModel2D)(dΓw1, Γw1, p, t)
+    input_func!, inputs, cache, _... = p
+
+    # 1. Update inputs dynamically at intermediate solver stage time t
+    input_func!(inputs, t)
+
+    # 2. Recompute kinematics & normalwash to get new states coefficients
+    PrepareCacheForStates!(cache, inputs, model)
 
     # 3. Calculate derivative
     mul!(dΓw1, model.K8, Γw1)
     mul!(dΓw1, model.K9, cache.b, 1.0, 1.0)
+    V = norm(inputs.vb)
     dΓw1 .*= V
     return nothing
 end
 
-function Outputs(cache, model)
+"""
+    Outputs!(out, cache, model, vb, ρ)
+
+Evaluates forces, moments, and stability/body coefficients in-place into `out`.
+Uses standard coordinate conversion functions defined in `Misc.jl`.
+"""
+function Outputs!(out, cache, model, vb, ρ)
     Fg, Mg = GetTotalForces(cache, model)
-    Fb = GeometryToBodyAxis(Fg, model.modelProperties)
-    Mb = GeometryToBodyAxis(Mg, model.modelProperties)
-    Fmp = zeros(eltype(Fb), 6*length(model.monitorPoints))
-    MonitorPointLoads!(Fmp, cache, model)
-    return Fb, Mb, Fmp
+    mProps = model.modelProperties
+    
+    # 1. Body axis forces and moments
+    out.Fb .= GeometryToBodyAxis(Fg, mProps)
+    out.Mb .= GeometryToBodyAxis(Mg, mProps)
+    
+    # Aerodynamic angles (angle of attack α)
+    α, _, _ = AerodynamicAngles(vb)
+    
+    # 2. Body axis coefficients (unrolled direct assignment)
+    CFbody, CMbody = ConvertToCoefficients(out.Fb, out.Mb, vb, ρ, mProps)
+    out.coeffsBody .= (CFbody..., CMbody...)
+    
+    # 3. Stability axis coefficients (unrolled direct assignment)
+    Fstab = GeometryToStabilityAxis(Fg, α, mProps)
+    Mstab = GeometryToStabilityAxis(Mg, α, mProps)
+    CFstab, CMstab = ConvertToCoefficients(Fstab, Mstab, vb, ρ, mProps)
+    out.coeffsStab .= (CFstab..., CMstab...)
+    
+    # 4. Monitor point loads
+    n_mp = length(model.monitorPoints)
+    if n_mp > 0
+        MonitorPointLoads!(out.Fmp, cache, model)
+    end
+    return nothing
 end
 
-# function SolveSteady(p::UnsteadySimParams, model)
-#     t = 0.
-#     cache=p.cache
-#     p.input_func!(p.inputs, t)
-#     # 2. Recompute steady kinematics to get new normalwash
-#     AddSteadyKinematics!(p.cache.rVertex, p.cache.vVertex, SVector(p.inputs.vb), SVector(p.inputs.ωb),
-#                          p.inputs.δc, p.inputs.dδc, p.inputs.rs, p.inputs.vs, model)
-#     CalculateNormalwash!(p.cache.b, p.cache.rVertex, p.cache.vVertex, model)
-#     CalculateDNormalwash!(cache.db, cache.rVertex, cache.vVertex, cache.aVertex, model)
+# --- SavingCallback Save Function ---
+
+# AeroSaveFunc(u, t, integrator)
+#
+# Callback function for SavingCallback. Updates inputs, prepares states, resolves
+# circulation and forces, and returns a copied UnsteadyAeroOutputs structure.
+function AeroSaveFunc(u, t, integrator)
+    input_func!, inputs, cache, model, dΓw1_temp = integrator.p
     
-#     V = norm(vb)
-#     SolveSteadyCirculation!(cache.Γw1, cache.dΓb, cache.Γb, cache.Γw, cache.Γs, cache.b, cache.db, V, model)
-#     CalculateUnsteadyAerodynamicForce!(cache.Fa, cache.dΓb, cache.Γb, cache.Γw, cache.Γs, cache.vVertex, model, ρ)
-# end
+    # 1. Update inputs
+    input_func!(inputs, t)
+    
+    # 2. Prepare states (kinematics, b, V)
+    PrepareCacheForStates!(cache, inputs, model)
+    
+    # 3. Evaluate state derivative in-place
+    integrator.f(dΓw1_temp, u, integrator.p, t)
+    
+    # 4. Prepare outputs (unsteady wash, circulation derivatives, forces)
+    PrepareCacheForOutputs!(cache, inputs, u, dΓw1_temp, model)
+    
+    # 5. Build outputs struct
+    out = OutputCache(model, eltype(u))
+    Outputs!(out, cache, model, SVector{3}(inputs.vb), inputs.ρ[1])
+    return copy(out)
+end
 
-# function SolveSteadyCirculation!(Γw1, dΓb, Γb, Γw, Γs, b, db, V, model::UnsteadyAeroModel2D)
-#     Γw1 .= model.K8 \ ((model.K9 * b) / V)
+# --- User-Facing solver API ---
 
-#     # Γb = L3*Γw1 - L4*b
-#     mul!(Γb, model.L3, Γw1)
-#     mul!(Γb, model.L4, b, -1.0, 1.0)
+"""
+    AeroSolve(model::UnsteadyAeroModel2D{T}, tspan, input_func!; solver, steady=false) where T
 
-#     # dΓb = V * (L5*Γw1 + L6*b) - L4*db
-#     mul!(dΓb, model.L5, Γw1)
-#     mul!(dΓb, model.L6, b, 1.0, 1.0)
-#     dΓb .*= V
-#     mul!(dΓb, model.L4, db, -1.0, 1.0)
+Solve an unsteady time-domain simulation using SciML SavingCallback.
+"""
+function AeroSolve(model::UnsteadyAeroModel2D{T}, tspan, input_func!; solver, steady=false) where T
+    # 1. Allocate caches using the new constructor API
+    inputs = InputCache(model, T)
+    cache = StateCache(model, T)
+    
+    nWake1 = size(model.K8, 1)
+    dΓw1_temp = zeros(T, nWake1)
+    
+    # ODE parameters tuple (input_func!, inputs, cache, model, dΓw1_temp)
+    p = (input_func!, inputs, cache, model, dΓw1_temp)
 
-#     Γw[model.Γw1Indices] .= Γw1
-#     Γw[model.Γw0Indices] .= @view Γb[model.ΓbTEIndices]
-
-#     SegmentCirculation!(Γs, Γb, model.segmentProps)
-#     return nothing
-# end
+    # 2. Handle optional steady initialization
+    Γw1_0 = zeros(T, nWake1)
+    if steady
+        input_func!(inputs, 0.0)
+        PrepareCacheForStates!(cache, inputs, model)
+        Γw1_0 .= -model.K8 \ (model.K9 * cache.b)
+    end
+    
+    # 3. Setup the ODE problem
+    prob = ODEProblem(model, Γw1_0, tspan, p)
+    
+    # 4. Setup SavingCallback
+    outputs = SavedValues(Float64, typeof(OutputCache(model, T)))
+    scb = SavingCallback(AeroSaveFunc, outputs)
+    
+    # 5. Solve using high-level SciML solver with callback
+    sol = solve(prob, solver; callback=scb)
+    
+    return (sol, outputs)
+end

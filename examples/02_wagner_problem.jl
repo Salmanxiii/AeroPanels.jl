@@ -19,21 +19,21 @@ tspan = (0.0, 20.0)
 # # 2. Input Function
 # The input function modifies the AeroInputs struct in-place for each time step.
 # For the Wagner problem, the velocity is constant after the impulsive start.
-function wagner_inputs!(inputs::AeroInputs, t)
+function wagner_inputs!(inputs, t)
     inputs.vb .= SVector(V*cos(deg2rad(α)), 0.0, V*sin(deg2rad(α)))
-    inputs.ρ = 1.225
+    inputs.ρ[1] = 1.225
 end
 
 # # 3. Integration and Results
 # We use `AeroSolve` to solve the state-space system and automatically extract the forces.
-res = AeroSolve(model, tspan, wagner_inputs!, solver=Tsit5())
-CL_UVLM = res.CL;
+sol, outputs = AeroSolve(model, tspan, wagner_inputs!, solver=Tsit5())
+CL_UVLM = [-out.coeffsStab[3] for out in outputs.saveval];
 
 # # 4. Analytical Solution: Wagner's Function (Jones Approximation)
 # Jones Approximation of Wagners function is given by $w(s) = 1 - 0.165*exp(-0.0455*s) - 0.335*exp(-0.3*s)$
 wagner(s) = 1.0 - 0.165*exp(-0.0455*s) - 0.335*exp(-0.3*s)
-time_chord = res.t ./ (c/V) # Non-dimensional time (t*V/c)
-s = 2.0 .* res.t ./ (c/V)       # Wagner's s (2*V*t/c)
+time_chord = outputs.t ./ (c/V) # Non-dimensional time (t*V/c)
+s = 2.0 .* outputs.t ./ (c/V)       # Wagner's s (2*V*t/c)
 CL_steady = 2 * π * deg2rad(α) # Thin airfoil theory steady lift
 CL_analytical = CL_steady .* wagner.(s);
 
