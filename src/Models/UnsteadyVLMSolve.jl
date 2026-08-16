@@ -86,8 +86,11 @@ function AeroPanels.InitializeFMU!(array::AbstractFMUArray, cache, model::Unstea
     w_eff = SVector{3}(array.wb) + wd
 
     AddSteadyKinematics!(cache.rVertex, cache.vVertex, v_eff, w_eff, array.u_cs, dδc, rs, vs, model)
-    CalculateNormalwash!(cache.b, cache.rVertex, cache.vVertex, model)
-    array.circ_w1 .= -model.K8 \ (model.K9 * cache.b)
+    if start_from_trim
+        array.circ_w1 .= -model.K8 \ (model.K9 * cache.b)
+    else
+        fill!(array.circ_w1, zero(T_el))
+    end
     EvaluateOutputs!(array, cache, model, t)
     return nothing
 end

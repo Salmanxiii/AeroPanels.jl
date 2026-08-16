@@ -29,6 +29,7 @@ makedocs(
     sitename = "AeroPanels.jl",
     modules  = [AeroPanels],
     doctest  = false,
+    warnonly = true,
     format = Documenter.HTML(
         prettyurls = get(ENV, "CI", nothing) == "true"
     ),
@@ -39,6 +40,7 @@ makedocs(
         "Examples" => [
             "Steady Wing" => "generated/01_steady_wing.md",
             "Wagner Problem" => "generated/02_wagner_problem.md",
+            "Coupled 6DOF Flight" => "generated/03_se2a_coupled_flight.md",
         ],
         "API Reference" => "api.md",
     ]

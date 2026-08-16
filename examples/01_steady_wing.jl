@@ -7,8 +7,7 @@ using AeroPanels
 using StaticArrays
 using GLMakie
 
-#
-# #  1. Define Geometry
+# # 1. Define Geometry
 # We start by defining a simple rectangular wing with 10 chordwise and 20 spanwise panels.
 nc, ns = 10, 20
 chord = (1.0, 1.0)
@@ -16,13 +15,15 @@ span = 3.0
 surf = AeroSurface2D(nc, ns, chord=chord, span=span, sweep=deg2rad(30.0));
 surf2 = Mirror(surf, 2) # Mirror along Y-axis for a full wing
 
-# #  2. Set Model Properties
+# # 2. Set Model Properties
 # We define the reference dimensions (chord, span, area) for coefficient calculation.
 props = AeroModelProperties(c=1.0, b=span, S=span*2.0);
 
 # # 3. Create Model
-# The `AeroModel2D` constructor assembles the influence matrices and prepares the solver.
-model = AeroModel2D([surf, surf2], props);
+# The `ThinAeroMesh` and `FixedWakeMesh` assemble the geometry and fixed wake grid, and `SteadyAeroModel2D` prepares the solver.
+boundMesh = ThinAeroMesh([surf, surf2])
+wakeMesh = FixedWakeMesh(boundMesh.ringMesh, boundMesh.sizes, props)
+model = SteadyAeroModel2D(boundMesh, wakeMesh, props);
 
 # # 4. Solve
 # We define a flight condition (Speed and Angle of Attack) and solve for the aerodynamic forces.
@@ -42,4 +43,3 @@ PlotModel(model)
 # Plot Forces
 f = PlotModel(model, plotWake=false, Γp=cache.Γp, Γw=cache.Γw, plotForces=true, Fa=cache.Fa)
 f
-#display(GLMakie.Screen(), f)

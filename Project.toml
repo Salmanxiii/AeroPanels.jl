@@ -39,6 +39,7 @@ OrdinaryDiffEqTsit5 = "2.0.1"
 Pkg = "1.12.1"
 SparseArrays = "1.10"
 StaticArrays = "1.9"
+StructArrays = "0.7"
 XML = "0.3.8"
 julia = "1.10"
 

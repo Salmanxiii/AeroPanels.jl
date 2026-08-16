@@ -14,7 +14,9 @@ sweep_angle = deg2rad(30)
 surf = AeroSurface2D(nc, ns, chord=chord, span=span, sweep=sweep_angle)
 surf2 = Mirror(surf, 2)
 props = AeroModelProperties(c=1.0, b=span, S=span*1.0)
-model = AeroModel2D([surf, surf2], props)
+boundMesh = ThinAeroMesh([surf, surf2])
+wakeMesh = FixedWakeMesh(boundMesh.ringMesh, boundMesh.sizes, props)
+model = SteadyAeroModel2D(boundMesh, wakeMesh, props)
 
 V, α = 10.0, 5.0
 vb = AeroPanels.BodyVelocity(V, deg2rad(α))

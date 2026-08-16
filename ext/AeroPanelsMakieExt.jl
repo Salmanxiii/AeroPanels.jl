@@ -77,7 +77,7 @@ function GetCameraView(model::AeroModel; distance_factor=0.1)
     body_up = Point3f(0.0, 0.0, -1.0)
     geom_up = C_gb * body_up
     
-    CG = model.modelProperties.CG
+    CG = model.modelProperties.rRef
     lookat_pt = Point3f(CG[1], CG[2], CG[3])
     
     b = model.modelProperties.b
@@ -144,7 +144,7 @@ function AeroPanels.PlotModel(model::AeroModel;
     if plotForces && !isnothing(Fa)
         c = model.modelProperties.c
         forceScale = c / maximum(norm.(Fa)) / 2
-        locations = AeroPanels.AerodynamicLoadLocation(model)
+        locations = model.segmentProps.mid
         forces = Fa
         dirs = [Point3f(f[1], f[2], f[3]) for f in forces] .* forceScale
         pts = [Point3f(p[1], p[2], p[3]) for p in locations]

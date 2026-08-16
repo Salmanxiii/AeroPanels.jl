@@ -17,15 +17,16 @@ abstract type AeroModel end
 include("Interfaces/FMUInterfaces.jl")
 include("Interfaces/Simulation.jl")
 
-GetBoundMesh(model::AeroModel) = GetBoundMesh(model.boundMesh)
-GetWakeMesh(model::AeroModel) = model.wakeMesh
-
 include("Indexing.jl")
 include("Geometry/AbstractAeroMesh.jl")
 include("Geometry/AeroSurface2D.jl")
 include("Geometry/ThinAeroMesh.jl")
 include("Geometry/Segments.jl")
 include("Geometry/Meshing.jl")
+
+GetBoundMesh(model::AeroModel) = GetBoundMesh(model.boundMesh)
+GetWakeMesh(model::AeroModel) = GetWakeMesh(model.wakeMesh)
+GetWakeMesh(mesh) = mesh
 include("Influence.jl")
 include("Geometry/ControlSurfaces.jl")
 include("Geometry/MonitorPoints.jl")
