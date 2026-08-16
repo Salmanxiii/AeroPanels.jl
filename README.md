@@ -11,7 +11,7 @@ $$\dot{\mathbf{\Gamma}}_w = \mathbf{f}(\mathbf{\Gamma}_w, \mathbf{x}, \mathbf{u}
 This enables continuous-time ODE integration (`DifferentialEquations.jl`), gradient tracing (`ForwardDiff.jl`), and direct co-simulation and model-exchange via FMI 2.0.
 
 <p align="center">
-  <img src="docs/src/assets/aircraft%20mesh.png" alt="AeroPanels Aircraft Aerodynamic Mesh" width="850"/>
+  <img src="docs/src/assets/aircraft_mesh.png" alt="AeroPanels Aircraft Aerodynamic Mesh" width="850"/>
 </p>
 
 ---
