@@ -1,4 +1,4 @@
-abstract type WakeModel end
+
 
 @generated function type_stable_mesh(
     va::NamedTuple{Names, VAT},
@@ -45,11 +45,11 @@ function CreateAeroMesh(surfaces::Vector{AeroSurface2D{T}}) where T
         end
         offset += (nc+1)*(ns+1)
     end
-    #mesh = GeometryBasics.Mesh((position=vertices,), vec(faces), Vector{UnitRange{Int}}())
     mesh = type_stable_mesh((position=vertices,), vec(faces), UnitRange{UInt32}[])
-    #mesh = _CreateMesh(vertices, faces)
     return mesh, sizes
 end
+
+
 
 function RingMesh!(ringMesh, mesh, sizes)
     rVert = coordinates(mesh)
@@ -79,47 +79,3 @@ function RingMesh(mesh, sizes)
 end
 
 
-################################## Wake Modeling #########################################
-
-@kwdef struct SteadyWake <: WakeModel
-    length::Real = 30.0
-end
-
-@kwdef struct FixedWake <: WakeModel
-    n::Int
-    length::Real = 30.0
-end
-
-function FlatWakeMesh(ringMesh::GeometryBasics.Mesh{3, T}, sizes, props::AeroModelProperties{T}; nWake::Int64=1, wakeLength::T=20.) where T
-    wakeSizes = Sizes([(nWake, ns) for (s, nc, ns) in sizes])
-    wakePanelLength = wakeLength*props.c / nWake
-    # Initialize Arrays
-    wakeVertices = Vector{Point3{T}}(undef, wakeSizes.totalVertices)
-    wakeFaces = Vector{GeometryBasics.QuadFace{Int}}(undef, wakeSizes.totalPanels)
-    ringVertices = coordinates(ringMesh)
-    flowDir = FlowAxis(props)
-
-    for (s, nc, ns) in sizes
-        @batch for i in 1:nWake+1
-            rw = (i-1)*wakePanelLength*flowDir
-            for j in 1:ns+1
-                rRingTE = ringVertices[VertexIndex(s, nc+1, j, sizes)]
-                index = VertexIndex(s, i, j, wakeSizes)
-                wakeVertices[index] = rRingTE + rw
-            end
-        end
-
-        @batch for i in 1:nWake
-            for j in 1:ns
-                index = PanelIndex(s, i, j, wakeSizes)
-                wakeFaces[index] = GeometryBasics.QuadFace(
-                    VertexIndex(s, i,   j,   wakeSizes),
-                    VertexIndex(s, i,   j+1, wakeSizes),
-                    VertexIndex(s, i+1, j+1, wakeSizes),
-                    VertexIndex(s, i+1, j,   wakeSizes))
-            end
-        end
-    end
-    wakeMesh = type_stable_mesh((position=wakeVertices,), wakeFaces, UnitRange{UInt32}[])
-    return wakeMesh, wakeSizes
-end

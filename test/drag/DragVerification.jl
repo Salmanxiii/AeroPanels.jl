@@ -16,7 +16,9 @@ function calculate_aero_data(AR; nc=5, ns=60)
     surf2 = Mirror(surf1, 2)
     
     props = AeroModelProperties(c=chord, b=2*span, S=2*span*chord)
-    model = AeroModel2D([surf1, surf2], props)
+    boundMesh = ThinAeroMesh([surf1, surf2])
+    wakeMesh = FixedWakeMesh(boundMesh.ringMesh, boundMesh.sizes, props)
+    model = SteadyAeroModel2D(boundMesh, wakeMesh, props)
     
     # Simplified API setup
     V = 50.0

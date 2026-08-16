@@ -77,13 +77,15 @@ function create_se2a_model()
     return model
 end
 
-fmu_name = "SE2AAircraftFMU"
-fmu_dir = @__DIR__
-fmu_path = joinpath(fmu_dir, fmu_name * ".fmu")
+if abspath(PROGRAM_FILE) == @__FILE__
+    fmu_name = "SE2AAircraftFMU"
+    fmu_dir = @__DIR__
+    fmu_path = joinpath(fmu_dir, fmu_name * ".fmu")
 
-# --- 2. Build the FMU ---
-println("Building FMU for SE2A Aircraft model...")
-BuildFMU(create_se2a_model, fmu_dir, fmu_name=fmu_name, clean=true)
+    # --- 2. Build the FMU ---
+    println("Building FMU for SE2A Aircraft model...")
+    BuildFMU(create_se2a_model, fmu_dir, fmu_name=fmu_name, clean=true)
 
-println("--- SUCCESS ---")
-println("FMU created at: $fmu_path")
+    println("--- SUCCESS ---")
+    println("FMU created at: $fmu_path")
+end

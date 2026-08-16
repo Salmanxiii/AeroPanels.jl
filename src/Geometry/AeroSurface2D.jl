@@ -138,11 +138,15 @@ function Base.size(surface::AeroSurface2D)
     return (surface.nc, surface.ns)
 end
 
-function NoSegments(surface::AeroSurface2D)
+function TotalSegments(surface::AeroSurface2D)
     nc, ns = Base.size(surface)
     nSegX = nc * (ns + 1)
     nSegY = ns * (nc + 1)
     return (nSegX, nSegY)
+end
+
+function TotalPanels(surface::AeroSurface2D)
+    return surface.nc * surface.ns
 end
 
 function Base.show(io::IO, surface::AeroSurface2D{T}) where {T}

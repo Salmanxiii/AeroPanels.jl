@@ -1,6 +1,7 @@
 module FMI_XML
 
 using XML
+using AeroPanels
 
 export generate_xml_node
 
@@ -30,12 +31,19 @@ function fmi2_real_variable(name, vr, causality; variability="continuous", initi
     return var_node
 end
 
-function generate_xml_node(name, nx, nCtrl, csNames, nVert, nmp, mpNames, version)
+"""
+    generate_xml_node(model::AbstractFMUModel; modelName="...", version="1.0.0")
+
+Generates the complete FMI 2.0 `modelDescription.xml` schema directly from `model` and its `@fmu_model` layout.
+"""
+function generate_xml_node(model::AbstractFMUModel; modelName::String=string(typeof(model).name.name), version::String="1.0.0")
     h = XML.h
+    layout = GetFMULayout(model)
+    arr = CreateFMUArray(model)
     
     root = h.fmiModelDescription(
         fmiVersion="2.0",
-        modelName=name,
+        modelName=modelName,
         guid="{$(bytes2hex(rand(UInt8, 16)))}",
         generationTool="AeroPanels.jl",
         version=version,
@@ -44,134 +52,159 @@ function generate_xml_node(name, nx, nCtrl, csNames, nVert, nmp, mpNames, versio
     )
     
     push!(root, h.ModelExchange(
-        modelIdentifier=name,
+        modelIdentifier=modelName,
         canGetAndSetFMUstate="true",
         canSerializeFMUstate="false",
-        providesDirectionalDerivative="false"
+        providesDirectionalDerivative="true"
     ))
     
     push!(root, h.CoSimulation(
-        modelIdentifier=name,
+        modelIdentifier=modelName,
         canHandleVariableCommunicationStepSize="true",
         canGetAndSetFMUstate="true",
         canSerializeFMUstate="false",
-        providesDirectionalDerivative="false"
+        providesDirectionalDerivative="true"
     ))
     
     vars = h.ModelVariables()
-    
     output_indices = Int[]
     derivative_indices = Int[]
     
-    current_index = 1
+    vr = 1
     
-    # 1. States x
-    for i in 1:nx
-        push!(vars, fmi2_real_variable("x[$i]", i, "local"; initial="exact", start=0.0))
-        current_index += 1
-    end
-    
-    # 2. Derivatives der(x)
-    for i in 1:nx
-        push!(vars, fmi2_real_variable("der_x[$i]", nx + i, "local"; derivative=i, initial="calculated"))
-        push!(derivative_indices, nx + i)
-        current_index += 1
-    end
-    
-    # 3. Rigid body inputs
-    vr_offset = 2 * nx
-    for i in 1:3
-        push!(vars, fmi2_real_variable("vb[$i]", vr_offset + i, "input"; start=0.0))
-        current_index += 1
-    end
-    vr_offset += 3
-    for i in 1:3
-        push!(vars, fmi2_real_variable("wb[$i]", vr_offset + i, "input"; start=0.0))
-        current_index += 1
-    end
-    vr_offset += 3
-    for i in 1:3
-        push!(vars, fmi2_real_variable("ab[$i]", vr_offset + i, "input"; start=0.0))
-        current_index += 1
-    end
-    vr_offset += 3
-    for i in 1:3
-        push!(vars, fmi2_real_variable("dwb[$i]", vr_offset + i, "input"; start=0.0))
-        current_index += 1
-    end
-    vr_offset += 3
-    push!(vars, fmi2_real_variable("rho", vr_offset + 1, "input"; start=1.225))
-    current_index += 1
-    
-    # 4. Control surfaces
-    vr_offset += 1
-    for k in 1:nCtrl
-        cs_name = csNames[k]
-        push!(vars, fmi2_real_variable("u_cs." * cs_name, vr_offset + 1, "input"; start=0.0))
-        push!(vars, fmi2_real_variable("du_cs." * cs_name, vr_offset + 2, "input"; start=0.0))
-        push!(vars, fmi2_real_variable("ddu_cs." * cs_name, vr_offset + 3, "input"; start=0.0))
-        vr_offset += 3
-        current_index += 3
-    end
-    
-    # 5. Structural nodes
-    if nVert > 0
-        for i in 1:(3*nVert)
-            push!(vars, fmi2_real_variable("rs[$i]", vr_offset + i, "input"; start=0.0))
-            current_index += 1
+    # 1. States
+    out_states = hasproperty(layout, :OutputStates) ? layout.OutputStates : ()
+    for fname in layout.States
+        sub_arr = getproperty(arr, fname)
+        sz = length(sub_arr)
+        is_out = fname in out_states
+        causality_str = is_out ? "output" : "local"
+        for i in 1:sz
+            var_name = sz == 1 ? string(fname) : "$(fname)[$i]"
+            push!(vars, fmi2_real_variable(var_name, vr, causality_str; initial="exact", start=0.0))
+            if is_out
+                push!(output_indices, vr)
+            end
+            vr += 1
         end
-        vr_offset += 3 * nVert
-        for i in 1:(3*nVert)
-            push!(vars, fmi2_real_variable("vs[$i]", vr_offset + i, "input"; start=0.0))
-            current_index += 1
-        end
-        vr_offset += 3 * nVert
-        for i in 1:(3*nVert)
-            push!(vars, fmi2_real_variable("as[$i]", vr_offset + i, "input"; start=0.0))
-            current_index += 1
-        end
-        vr_offset += 3 * nVert
     end
     
-    # 6. Outputs
-    for i in 1:3
-        push!(vars, fmi2_real_variable("Fb[$i]", vr_offset + i, "output"; initial="calculated"))
-        push!(output_indices, current_index)
-        current_index += 1
-    end
-    vr_offset += 3
-    for i in 1:3
-        push!(vars, fmi2_real_variable("Mb[$i]", vr_offset + i, "output"; initial="calculated"))
-        push!(output_indices, current_index)
-        current_index += 1
-    end
-    vr_offset += 3
-    for k in 1:nmp
-        mp_name = mpNames[k]
-        for i in 1:6
-            push!(vars, fmi2_real_variable(mp_name * "_load[$i]", vr_offset + i, "output"; initial="calculated"))
-            push!(output_indices, current_index)
-            current_index += 1
+    # 2. State Derivatives
+    out_derivs = hasproperty(layout, :OutputDerivatives) ? layout.OutputDerivatives : ()
+    for fname in layout.Derivatives
+        sub_arr = getproperty(arr, fname)
+        sz = length(sub_arr)
+        is_out = fname in out_derivs
+        causality_str = is_out ? "output" : "local"
+        for i in 1:sz
+            var_name = sz == 1 ? string(fname) : "$(fname)[$i]"
+            state_vr = i # Maps 1-to-1 with corresponding state VR
+            push!(vars, fmi2_real_variable(var_name, vr, causality_str; derivative=state_vr, initial="calculated"))
+            push!(derivative_indices, vr)
+            if is_out
+                push!(output_indices, vr)
+            end
+            vr += 1
         end
-        vr_offset += 6
+    end
+    
+    # 3. Inputs
+    for fname in layout.Inputs
+        sub_arr = getproperty(arr, fname)
+        sz = length(sub_arr)
+        start_val = fname == :rho ? 1.225 : 0.0
+        for i in 1:sz
+            var_name = sz == 1 ? string(fname) : "$(fname)[$i]"
+            push!(vars, fmi2_real_variable(var_name, vr, "input"; start=start_val))
+            vr += 1
+        end
+    end
+    
+    # 4. Outputs
+    mp_list = hasproperty(model, :monitorPoints) ? model.monitorPoints : MonitorPoint[]
+    for fname in layout.Outputs
+        sub_arr = getproperty(arr, fname)
+        sz = length(sub_arr)
+        if (fname == :Fmp || fname == :monitorPointLoads) && length(mp_list) > 0
+            for (k, mp) in enumerate(mp_list)
+                for c_idx in 1:6
+                    var_name = "$(mp.name)_load[$c_idx]"
+                    push!(vars, fmi2_real_variable(var_name, vr, "output"; initial="calculated"))
+                    push!(output_indices, vr)
+                    vr += 1
+                end
+            end
+        else
+            for i in 1:sz
+                var_name = sz == 1 ? string(fname) : "$(fname)[$i]"
+                push!(vars, fmi2_real_variable(var_name, vr, "output"; initial="calculated"))
+                push!(output_indices, vr)
+                vr += 1
+            end
+        end
     end
     
     push!(root, vars)
     
-    # ModelStructure
+    # ModelStructure with optional Sparsity Dependencies
+    sparsity_info = try
+        GetFMISparsity(model)
+    catch
+        nothing
+    end
+    
     struct_node = h.ModelStructure()
     
     outputs_node = h.Outputs()
-    for idx in output_indices
-        push!(outputs_node, h.Unknown(index=string(idx)))
+    if sparsity_info !== nothing
+        J = sparsity_info.jacobian
+        nStates = NumberOfStates(model)
+        for (i, idx) in enumerate(output_indices)
+            row_idx = nStates + i
+            if row_idx <= size(J, 1)
+                deps = findall(J[row_idx, :])
+                if !isempty(deps)
+                    deps_str = join(deps, " ")
+                    kinds_str = join(["dependent" for _ in 1:length(deps)], " ")
+                    push!(outputs_node, h.Unknown(index=string(idx), dependencies=deps_str, dependenciesKind=kinds_str))
+                else
+                    push!(outputs_node, h.Unknown(index=string(idx), dependencies="", dependenciesKind=""))
+                end
+            else
+                push!(outputs_node, h.Unknown(index=string(idx)))
+            end
+        end
+    else
+        for idx in output_indices
+            push!(outputs_node, h.Unknown(index=string(idx)))
+        end
     end
     push!(struct_node, outputs_node)
     
-    derivatives_node = h.Derivatives()
-    for idx in derivative_indices
-        push!(derivatives_node, h.Unknown(index=string(idx)))
+    if length(derivative_indices) > 0
+        derivatives_node = h.Derivatives()
+        if sparsity_info !== nothing
+            J = sparsity_info.jacobian
+            nStates = NumberOfStates(model)
+            for i in 1:length(derivative_indices)
+                idx = derivative_indices[i]
+                deps = findall(J[i, :])
+                if !isempty(deps)
+                    deps_str = join(deps, " ")
+                    kinds = [d <= nStates ? "fixed" : "dependent" for d in deps]
+                    kinds_str = join(kinds, " ")
+                    push!(derivatives_node, h.Unknown(index=string(idx), dependencies=deps_str, dependenciesKind=kinds_str))
+                else
+                    push!(derivatives_node, h.Unknown(index=string(idx), dependencies="", dependenciesKind=""))
+                end
+            end
+        else
+            for idx in derivative_indices
+                push!(derivatives_node, h.Unknown(index=string(idx)))
+            end
+        end
+        push!(struct_node, derivatives_node)
     end
-    push!(struct_node, derivatives_node)
     
     initial_node = h.InitialUnknowns()
     for idx in output_indices

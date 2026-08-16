@@ -13,10 +13,9 @@ function create_wagner_model()
     surf = AeroSurface2D(20, 1, chord=(c, c), span=100.0)
     props = AeroModelProperties(c=c, b=100.0, S=100.0)
     
-    # We use higher fidelity for the FMU example to match the reference results.
-    # Reference plot uses nWake=500, wakeLength=20.0. 
-    # We use nWake=200, wakeLength=15.0 for a balance of speed and accuracy.
-    model = UnsteadyAeroModel2D([surf], props, V, nWake=200, wakeLength=15.0)
+    boundMesh = ThinAeroMesh([surf])
+    wakeMesh = FixedWakeMesh(boundMesh.ringMesh, boundMesh.sizes, props; nWake=200, wakeLength=15.0)
+    model = UnsteadyAeroModel2D(boundMesh, wakeMesh, props, V)
     return model
 end
 

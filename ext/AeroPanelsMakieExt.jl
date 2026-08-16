@@ -110,11 +110,11 @@ function AeroPanels.PlotModel(model::AeroModel;
     end
 
     if !isnothing(Γp)
-        flat_mesh_p, v_colors_p = disconnected_mesh(model.mesh, Γp)
+        flat_mesh_p, v_colors_p = disconnected_mesh(GetBoundMesh(model), Γp)
         mesh!(ax, flat_mesh_p, color=v_colors_p, colormap=:viridis)
     else
         # Extract total panel count to preallocate the color array
-        num_panels = length(faces(model.mesh))
+        num_panels = length(faces(GetBoundMesh(model)))
         face_colors = fill((:lightblue, 0.9), num_panels)
         
         # Override colors for control surface panels using the stored indices
@@ -124,20 +124,20 @@ function AeroPanels.PlotModel(model::AeroModel;
             end
         end
         
-        flat_mesh_p, v_colors_p = disconnected_mesh(model.mesh, face_colors)
+        flat_mesh_p, v_colors_p = disconnected_mesh(GetBoundMesh(model), face_colors)
         mesh!(ax, flat_mesh_p, color=v_colors_p)
     end
 
     # Enforce wireframe globally to outline the transparent panels
-    wireframe!(ax, model.mesh, color=:black, linewidth=1.0; kwargsWireFrame...)
+    wireframe!(ax, GetBoundMesh(model.boundMesh), color=:black, linewidth=1.0; kwargsWireFrame...)
 
     if plotWake
         if !isnothing(Γw)
-            flat_mesh_w, v_colors_w = disconnected_mesh(model.wakeMesh, Γw)
+            flat_mesh_w, v_colors_w = disconnected_mesh(GetWakeMesh(model), Γw)
             mesh!(ax, flat_mesh_w, color=v_colors_w, colormap=:viridis)
-            wireframe!(ax, model.wakeMesh, color=(:black, 0.5), linewidth=0.5)
+            wireframe!(ax, GetWakeMesh(model), color=(:black, 0.5), linewidth=0.5)
         else
-            wireframe!(ax, model.wakeMesh, color=:gray, linewidth=0.5)
+            wireframe!(ax, GetWakeMesh(model), color=:gray, linewidth=0.5)
         end
     end
 
